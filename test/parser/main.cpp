@@ -1,6 +1,6 @@
+//#define BOOST_SPIRIT_DEBUG
 #include "fortran_parser.hpp"
 #include <fstream>
-#define BOOST_SPIRIT_DEBUG
 
 
 bool endswith(std::string s, std::string t)
@@ -12,10 +12,10 @@ bool endswith(std::string s, std::string t)
   return false;
 }
 
-void remove_blank(std::string s)
+void remove_blank(std::string &s)
 {
   for (int i=0; i<s.size(); i++) {
-    s.erase(i--,1);
+    if (s[i] == ' ') s.erase(i--,1);
   }
 }
 
@@ -37,7 +37,6 @@ int main(int argc, char* argv[])
   while (getline(fs, buf)) {
     input += buf + "\n";
   }
-  std::cout << input << std::endl;
 
   // parse
   client::fortran_parser<std::string::const_iterator> fortran_parser(is_fixed_file);
@@ -48,9 +47,8 @@ int main(int argc, char* argv[])
 
   // check result
   if (r && it == end) {
-    std::cout << "ok" << std::endl;
+    return 0;
   } else {
-    std::cout << "ng" << std::endl;
+    return 1;
   }
-  return 0;
 }
