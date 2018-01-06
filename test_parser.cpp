@@ -3,6 +3,10 @@
 #include <boost/spirit/include/support_utree.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix.hpp>
+#include <boost/spirit/include/phoenix_core.hpp>
+#include <boost/spirit/include/phoenix_operator.hpp>
+#include <boost/spirit/include/phoenix_fusion.hpp>
+#include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/include/io.hpp>
 
@@ -10,36 +14,79 @@ namespace qi = boost::spirit::qi;
 namespace spirit = boost::spirit;
 namespace ascii = boost::spirit::qi::ascii;
 
-struct AST_specification {
+enum class Type_kind : int {
+  Intrinsic,
+  derived_type,
+  polymorphic,
+  unlimited_polymorphic
+};
+
+struct Type_specification {
+  enum Type_kind kind;
+  std::string type_name;
+};
+
+enum class Specification_kind : int {
+  Use_statement,
+  Import_statement,
+  Implicit_statement,
+  Parameter_statement,
+  Format_statement,
+  Entry_statement,
+  Derived_type_definition,
+  Enum_definition,
+  Interface_block,
+  Procedure_declaration_statement,
+  Type_declaration_statement,
+  Statement_function_statement,
+  // OTHER
+};
+
+struct Specification {
+  enum Specification_kind kind;
+  struct Type_specification type_spec; // pointer is prefered, extendend type should have this
+  std::vector<std::string> variables;
+};
+
+struct Executable_statement {
 
 };
 
-struct AST_executable_statement {
+struct Subroutine {
 
 };
 
-struct AST_subroutine {
-
-};
-
-struct AST_program {
+struct Program {
   std::string name;
   //  int program_kind; // enum
-  AST_specification variables_head;
-  AST_executable_statement executable_statements_head;
-  AST_subroutine subroutines_head;
+  std::vector<Specification> specifications;
+  Executable_statement executable_statements_head;
+  Subroutine subroutines_head;
 };
 
 BOOST_FUSION_ADAPT_STRUCT (
-			   AST_program,
+			   Program,
 			   (std::string, name)
-			   //			   (AST_specification, variables_head)
-			   //			   (AST_executable_statement, executable_statements_head)
-			   //			   (AST_subroutine, subroutines_head)
+			   (std::vector<Specification>, specifications)
+			   //			   (Executable_statement, executable_statements_head)
+			   //			   (Subroutine, subroutines_head)
+			   )
+
+BOOST_FUSION_ADAPT_STRUCT (
+			   Specification,
+			   (enum Specification_kind, kind)
+			   (struct Type_specification, type_spec)
+			   (std::vector<std::string>, variables)
+			   )
+
+BOOST_FUSION_ADAPT_STRUCT (
+			   Type_specification,
+			   (enum Type_kind, kind)
+			   (std::string, type_name)
 			   )
 
 template <typename Iterator>
-struct test_parser : qi::grammar<Iterator, AST_program(), ascii::space_type>
+struct test_parser : qi::grammar<Iterator, Program(), ascii::space_type>
 {
   test_parser() : test_parser::base_type(start)
   {
@@ -47,10 +94,20 @@ struct test_parser : qi::grammar<Iterator, AST_program(), ascii::space_type>
     using qi::lit;
     using qi::double_;
     using qi::lexeme;
+    using qi::eol;
     using ascii::char_;
     using boost::spirit::qi::_1;
     using boost::spirit::qi::_val;
+    using boost::phoenix::at_c;
+    using boost::phoenix::push_back;
 
+    bool fixed=false;
+    if (fixed) {
+      blank = "";
+    } else {
+      blank = +qi::ascii::blank;
+    }
+    
     name = qi::ascii::alpha >> *(qi::ascii::alpha | qi::digit | qi::char_('_'));
 
     start %=
@@ -58,13 +115,13 @@ struct test_parser : qi::grammar<Iterator, AST_program(), ascii::space_type>
 
     main_program %=
       program_stmt
-      //      >> specification_part
+      >> specification_part
       //      >> execution_part
       //      >> internal_subprogram_part
       >> end_program_stmt
       ;
     
-    program_stmt = lit("program") >> +qi::ascii::blank >> name [_val = _1];
+    program_stmt = lit("program") >> blank >> name [_val = _1];
 
     end_program_stmt =
       (lit("end") >> lit("program") >> name) [_val = _1] |
@@ -72,9 +129,32 @@ struct test_parser : qi::grammar<Iterator, AST_program(), ascii::space_type>
 
     end_module_stmt =
       lit("end") >>
-      -(+qi::ascii::blank >> lit("module") >> -(+qi::ascii::blank >> name[_val = _1]));
+      -(blank >> lit("module") >> -(blank >> name[_val = _1]));
 
+    // todo
+    specification_part =
+      *use_stmt                 [push_back(_val, _1)]
+      >> *declaration_construct [push_back(_val, _1)];
+  
+  // todo
+  use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement];
 
+  // todo
+  //declaration_construct = lit("declaration construct") [at_c<0>(_val) = Specification_kind::Implicit_statement];
+  declaration_construct = type_declaration_stmt | parameter_stmt;
+  type_declaration_stmt =
+    declaration_type_spec [at_c<0>(_val) = Specification_kind::Type_declaration_statement,
+			   at_c<1>(_val) = _1]
+    >> *name [push_back(at_c<2>(_val), _1)];
+    ;
+  
+    // todo
+    declaration_type_spec = lit("integer") [at_c<0>(_val) = Type_kind::Intrinsic,
+					    at_c<1>(_val) = "integer"];
+
+    // todo
+    parameter_stmt = lit("parameter") [at_c<0>(_val) = Specification_kind::Parameter_statement];
+  
     // todo
     module %=
       module_stmt
@@ -92,18 +172,60 @@ struct test_parser : qi::grammar<Iterator, AST_program(), ascii::space_type>
 
   qi::rule<Iterator, std::string()> name;
   qi::rule<Iterator, std::string()> program_stmt, module_stmt;
-  qi::rule<Iterator, AST_specification(), ascii::space_type> specification_part;
-  qi::rule<Iterator, AST_executable_statement(), ascii::space_type> execution_part;
-  qi::rule<Iterator, AST_subroutine(), ascii::space_type> internal_subprogram_part;
+  qi::rule<Iterator, std::vector<Specification>(), ascii::space_type> specification_part;
+  qi::rule<Iterator, Specification(), ascii::space_type> use_stmt, declaration_construct, type_declaration_stmt, parameter_stmt;
+  qi::rule<Iterator, Type_specification(), ascii::space_type> declaration_type_spec;  
+  qi::rule<Iterator, Executable_statement(), ascii::space_type> execution_part;
+  qi::rule<Iterator, Subroutine(), ascii::space_type> internal_subprogram_part;
   qi::rule<Iterator, std::string(), ascii::space_type> end_program_stmt, end_module_stmt;
   qi::rule<Iterator> blank;
-  qi::rule<Iterator, AST_program(), ascii::space_type> start;
-  qi::rule<Iterator, AST_program(), ascii::space_type> main_program, module;
+  qi::rule<Iterator, Program(), ascii::space_type> start;
+  qi::rule<Iterator, Program(), ascii::space_type> main_program, module;
 };
 
-void print_program(AST_program p)
+void print_type_declaration_statement(Specification &s)
 {
-  std::cout << "program name:" << p.name << std::endl;
+  std::cout << "type declaration statement, typename=";
+  if (s.type_spec.kind == Type_kind::Intrinsic) {
+    std::cout << s.type_spec.type_name << std::endl;
+  } else {
+    std::cout << "not supported yet" << std::endl;
+  }
+  std::cout << "variables:" ;
+  for (auto v : s.variables) {
+    std::cout << v << ","; // last comma should be removed
+  }
+  std::cout << std::endl;
+}
+
+void print_specification(Specification &s)
+{
+  std::string kind;
+  switch(s.kind){
+  case Specification_kind::Use_statement:
+    kind = "use statement";
+    std::cout << kind << std::endl;
+    break;
+  case Specification_kind::Implicit_statement:
+    kind = "implicit statement";
+    std::cout << kind << std::endl;
+    break;
+  case Specification_kind::Type_declaration_statement:
+    print_type_declaration_statement(s);
+    break;
+  default:
+    kind = "unknown";
+    std::cout << kind << std::endl;
+  }
+}
+
+void print_program(Program &p)
+{
+  std::cout << "program name: " << p.name << std::endl;
+  std::cout << "specifications:" << std::endl;
+  for(auto s : p.specifications) {
+    print_specification(s);
+  }
 }
 
 int main()
@@ -115,8 +237,8 @@ int main()
   {
     // remove_space(str);
     std::string::const_iterator it = str.begin(), end = str.end();
-    AST_program program;
-    bool r = phrase_parse(it, end, parser, qi::ascii::space, program);
+    Program program;
+    bool r = phrase_parse(it, end, parser, qi::ascii::blank, program);
     if (r && it == end) {
       std::cout << "succeeded:\t" << std::endl;
     }
