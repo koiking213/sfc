@@ -10,6 +10,12 @@
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/include/io.hpp>
 
+namespace ast {
+  struct add;
+  struct sub;
+  struct mul;
+}
+
 namespace qi = boost::spirit::qi;
 namespace spirit = boost::spirit;
 namespace ascii = boost::spirit::qi::ascii;
@@ -19,11 +25,6 @@ enum class Type_kind : int {
   derived_type,
   polymorphic,
   unlimited_polymorphic
-};
-
-struct Type_specification {
-  enum Type_kind kind;
-  std::string type_name;
 };
 
 enum class Specification_kind : int {
@@ -42,11 +43,29 @@ enum class Specification_kind : int {
   // OTHER
 };
 
-struct Specification {
-  enum Specification_kind kind;
-  struct Type_specification type_spec; // extendend type should have this
+class Type_specification {
+public:
+  enum Type_kind type_kind;
+  std::string type_name;
   std::vector<std::string> variables;
 };
+
+class Named_constant_definition {
+public:
+  std::string named_constant;
+  //  Expression exp;
+};
+
+class Parameter_statement {
+public:
+  std::vector<Named_constant_definition> named_constants;
+};
+
+using Specification = boost::variant<
+  Type_specification,
+  Parameter_statement
+  >;
+
 
 struct Executable_statement {
 
@@ -72,18 +91,19 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   //			   (Subroutine, subroutines_head)
 			   )
 
+
 BOOST_FUSION_ADAPT_STRUCT (
-			   Specification,
-			   (enum Specification_kind, kind)
-			   (struct Type_specification, type_spec)
+			   Type_specification,
+			   (enum Type_kind, type_kind)
+			   (std::string, type_name)
 			   (std::vector<std::string>, variables)
 			   )
 
 BOOST_FUSION_ADAPT_STRUCT (
-			   Type_specification,
-			   (enum Type_kind, kind)
-			   (std::string, type_name)
+			   Parameter_statement,
+			   (std::vector<Named_constant_definition>, named_constants)
 			   )
+
 
 template <typename Iterator>
 struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
@@ -133,27 +153,26 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
 
     // todo
     specification_part =
-      *use_stmt                 [push_back(_val, _1)]
-      >> *declaration_construct [push_back(_val, _1)];
+      /* *use_stmt                 [push_back(_val, _1)]
+	 >>*/ *declaration_construct [push_back(_val, _1)];
+  
   
   // todo
-  use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;
+  //use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;
 
   // todo
   //declaration_construct = lit("declaration construct") [at_c<0>(_val) = Specification_kind::Implicit_statement];
-  declaration_construct = type_declaration_stmt | parameter_stmt;
+    declaration_construct = type_declaration_stmt.alias(); /*| parameter_stmt*/
   type_declaration_stmt =
-    declaration_type_spec [at_c<0>(_val) = Specification_kind::Type_declaration_statement,
-			   at_c<1>(_val) = _1]
+    declaration_type_spec [_val = _1]
     >> name [push_back(at_c<2>(_val), _1)] % qi::char_(',')>> eol;
-    ;
   
     // todo
     declaration_type_spec = lit("integer") [at_c<0>(_val) = Type_kind::Intrinsic,
 					    at_c<1>(_val) = "integer"];
 
     // todo
-    parameter_stmt = lit("parameter") [at_c<0>(_val) = Specification_kind::Parameter_statement];
+    //parameter_stmt = lit("parameter") [at_c<0>(_val) = Specification_kind::Parameter_statement];
   
     // todo
     module %=
@@ -173,8 +192,9 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
   qi::rule<Iterator, std::string()> name;
   qi::rule<Iterator, std::string()> program_stmt, module_stmt;
   qi::rule<Iterator, std::vector<Specification>(), ascii::blank_type> specification_part;
-  qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct, type_declaration_stmt, parameter_stmt;
-  qi::rule<Iterator, Type_specification(), ascii::blank_type> declaration_type_spec;  
+  qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct;
+  qi::rule<Iterator, Type_specification(), ascii::blank_type> type_declaration_stmt, declaration_type_spec;
+  qi::rule<Iterator, Parameter_statement(), ascii::blank_type> parameter_stmt;
   qi::rule<Iterator, Executable_statement(), ascii::blank_type> execution_part;
   qi::rule<Iterator, Subroutine(), ascii::blank_type> internal_subprogram_part;
   qi::rule<Iterator, std::string(), ascii::blank_type> end_program_stmt, end_module_stmt;
@@ -183,11 +203,11 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
   qi::rule<Iterator, Program(), ascii::blank_type> main_program, module;
 };
 
-void print_type_declaration_statement(Specification &s)
+void print_type_declaration_statement(Type_specification &s)
 {
   std::cout << "type declaration statement, typename=";
-  if (s.type_spec.kind == Type_kind::Intrinsic) {
-    std::cout << s.type_spec.type_name << std::endl;
+  if (s.type_kind == Type_kind::Intrinsic) {
+    std::cout << s.type_name << std::endl;
   } else {
     std::cout << "not supported yet" << std::endl;
   }
@@ -201,21 +221,12 @@ void print_type_declaration_statement(Specification &s)
 void print_specification(Specification &s)
 {
   std::string kind;
-  switch(s.kind){
-  case Specification_kind::Use_statement:
-    kind = "use statement";
-    std::cout << kind << std::endl;
-    break;
-  case Specification_kind::Implicit_statement:
-    kind = "implicit statement";
-    std::cout << kind << std::endl;
-    break;
-  case Specification_kind::Type_declaration_statement:
-    print_type_declaration_statement(s);
-    break;
-  default:
-    kind = "unknown";
-    std::cout << kind << std::endl;
+  if (s.type() == typeid(Type_specification)) {
+    print_type_declaration_statement(boost::get<Type_specification>(s));
+  } else if (s.type() == typeid(Parameter_statement)) {
+    //print_parameter_statement(boost::get<Type_specification>(s));
+  } else {
+    std::cout << "unknown specification" << std::endl;
   }
 }
 
