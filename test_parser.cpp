@@ -44,7 +44,7 @@ enum class Specification_kind : int {
 
 struct Specification {
   enum Specification_kind kind;
-  struct Type_specification type_spec; // pointer is prefered, extendend type should have this
+  struct Type_specification type_spec; // extendend type should have this
   std::vector<std::string> variables;
 };
 
@@ -86,7 +86,7 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   )
 
 template <typename Iterator>
-struct test_parser : qi::grammar<Iterator, Program(), ascii::space_type>
+struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
 {
   test_parser() : test_parser::base_type(start)
   {
@@ -114,18 +114,18 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::space_type>
       main_program | module;
 
     main_program %=
-      program_stmt
+      -program_stmt
       >> specification_part
       //      >> execution_part
       //      >> internal_subprogram_part
       >> end_program_stmt
       ;
     
-    program_stmt = lit("program") >> blank >> name [_val = _1];
+    program_stmt = lit("program") >> blank >> name [_val = _1] >> eol;
 
     end_program_stmt =
-      (lit("end") >> lit("program") >> name) [_val = _1] |
-      (lit("end") >> -(lit("program")))      [_val = ""];
+      (lit("end") >> lit("program") >> name >> eol) [_val = _1] |
+      (lit("end") >> -(lit("program")) >> eol)      [_val = ""];
 
     end_module_stmt =
       lit("end") >>
@@ -137,7 +137,7 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::space_type>
       >> *declaration_construct [push_back(_val, _1)];
   
   // todo
-  use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement];
+  use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;
 
   // todo
   //declaration_construct = lit("declaration construct") [at_c<0>(_val) = Specification_kind::Implicit_statement];
@@ -145,7 +145,7 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::space_type>
   type_declaration_stmt =
     declaration_type_spec [at_c<0>(_val) = Specification_kind::Type_declaration_statement,
 			   at_c<1>(_val) = _1]
-    >> *name [push_back(at_c<2>(_val), _1)];
+    >> name [push_back(at_c<2>(_val), _1)] % qi::char_(',')>> eol;
     ;
   
     // todo
@@ -172,15 +172,15 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::space_type>
 
   qi::rule<Iterator, std::string()> name;
   qi::rule<Iterator, std::string()> program_stmt, module_stmt;
-  qi::rule<Iterator, std::vector<Specification>(), ascii::space_type> specification_part;
-  qi::rule<Iterator, Specification(), ascii::space_type> use_stmt, declaration_construct, type_declaration_stmt, parameter_stmt;
-  qi::rule<Iterator, Type_specification(), ascii::space_type> declaration_type_spec;  
-  qi::rule<Iterator, Executable_statement(), ascii::space_type> execution_part;
-  qi::rule<Iterator, Subroutine(), ascii::space_type> internal_subprogram_part;
-  qi::rule<Iterator, std::string(), ascii::space_type> end_program_stmt, end_module_stmt;
+  qi::rule<Iterator, std::vector<Specification>(), ascii::blank_type> specification_part;
+  qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct, type_declaration_stmt, parameter_stmt;
+  qi::rule<Iterator, Type_specification(), ascii::blank_type> declaration_type_spec;  
+  qi::rule<Iterator, Executable_statement(), ascii::blank_type> execution_part;
+  qi::rule<Iterator, Subroutine(), ascii::blank_type> internal_subprogram_part;
+  qi::rule<Iterator, std::string(), ascii::blank_type> end_program_stmt, end_module_stmt;
   qi::rule<Iterator> blank;
-  qi::rule<Iterator, Program(), ascii::space_type> start;
-  qi::rule<Iterator, Program(), ascii::space_type> main_program, module;
+  qi::rule<Iterator, Program(), ascii::blank_type> start;
+  qi::rule<Iterator, Program(), ascii::blank_type> main_program, module;
 };
 
 void print_type_declaration_statement(Specification &s)
