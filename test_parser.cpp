@@ -14,6 +14,30 @@ namespace ast {
   struct add;
   struct sub;
   struct mul;
+  struct div;
+
+  template <class Op>
+  struct binary_op;
+
+  using Expression = boost::variant<
+    int,
+    std::string,
+    boost::recursive_wrapper< binary_op< add > >,
+    boost::recursive_wrapper< binary_op< sub > >,
+    boost::recursive_wrapper< binary_op< mul > >,
+    boost::recursive_wrapper< binary_op< div > >
+    >;
+
+  template <class Op>
+  struct binary_op
+  {
+    Expression lhs;
+    Expression rhs;
+    
+    binary_op(Expression const& lhs_, Expression const& rhs_) :
+      lhs( lhs_ ), rhs( rhs_ )
+    { }
+  };
 }
 
 namespace qi = boost::spirit::qi;
@@ -43,21 +67,18 @@ enum class Specification_kind : int {
   // OTHER
 };
 
-class Type_specification {
-public:
+struct Type_specification {
   enum Type_kind type_kind;
   std::string type_name;
   std::vector<std::string> variables;
 };
 
-class Named_constant_definition {
-public:
+struct Named_constant_definition {
   std::string named_constant;
   //  Expression exp;
 };
 
-class Parameter_statement {
-public:
+struct Parameter_statement {
   std::vector<Named_constant_definition> named_constants;
 };
 
@@ -66,10 +87,14 @@ using Specification = boost::variant<
   Parameter_statement
   >;
 
-
-struct Executable_statement {
-
+struct Assignment_statement {
+  ast::Expression lhs;
+  ast::Expression rhs;
 };
+
+using Executable_construct = boost::variant<
+  Assignment_statement
+  >;
 
 struct Subroutine {
 
@@ -79,7 +104,7 @@ struct Program {
   std::string name;
   //  int program_kind; // enum
   std::vector<Specification> specifications;
-  Executable_statement executable_statements_head;
+  std::vector<Executable_construct> executable_constructs;
   Subroutine subroutines_head;
 };
 
@@ -87,7 +112,7 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   Program,
 			   (std::string, name)
 			   (std::vector<Specification>, specifications)
-			   //			   (Executable_statement, executable_statements_head)
+			   (std::vector<Executable_construct>, executable_constructs)
 			   //			   (Subroutine, subroutines_head)
 			   )
 
@@ -104,6 +129,12 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   (std::vector<Named_constant_definition>, named_constants)
 			   )
 
+BOOST_FUSION_ADAPT_STRUCT (
+			   Assignment_statement,
+			   (ast::Expression, lhs)
+			   (ast::Expression, rhs)
+			   )
+
 
 template <typename Iterator>
 struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
@@ -117,9 +148,11 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
     using qi::eol;
     using ascii::char_;
     using boost::spirit::qi::_1;
+    using boost::spirit::qi::_2;
     using boost::spirit::qi::_val;
     using boost::phoenix::at_c;
     using boost::phoenix::push_back;
+    namespace phx = boost::phoenix;
 
     bool fixed=false;
     if (fixed) {
@@ -136,7 +169,7 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
     main_program %=
       -program_stmt
       >> specification_part
-      //      >> execution_part
+      >> execution_part
       //      >> internal_subprogram_part
       >> end_program_stmt
       ;
@@ -155,7 +188,44 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
     specification_part =
       /* *use_stmt                 [push_back(_val, _1)]
 	 >>*/ *declaration_construct [push_back(_val, _1)];
-  
+
+    // todo
+    execution_part = +executable_construct;
+    
+    // todo
+    executable_construct = action_stmt.alias();
+
+    // todo
+    action_stmt = assignment_stmt.alias();
+
+    // todo
+    assignment_stmt =
+      variable[at_c<0>(_val) = _1]
+      >> lit("=")
+      >> expr[at_c<1>(_val) = _1] >> eol;
+
+    //assignment_stmt = variable >> lit("=") >> varia >> eol;
+    
+    // todo
+    variable = name.alias();
+
+    // todo
+    expr = add_operand [_val = _1]
+      >> *(
+	   ('+' >> add_operand [phx::construct<ast::binary_op<ast::add> >(_val, _1)])
+	   | ('-' >> add_operand [phx::construct<ast::binary_op<ast::sub> >(_val, _1)])
+	   );
+    add_operand = mult_operand [_val = _1]
+      >> *(
+	   ('*' >> mult_operand [phx::construct<ast::binary_op<ast::mul> >(_val, _1)])
+	   | ('/' >> mult_operand [phx::construct<ast::binary_op<ast::div> >(_val, _1)])
+	   );
+    mult_operand = level_1_expr.alias();
+    level_1_expr = primary.alias();
+    primary =
+      name 
+      | (lit("(") >> expr >> lit(")"));
+    
   
   // todo
   //use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;
@@ -189,13 +259,16 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
       ;
   }
 
-  qi::rule<Iterator, std::string()> name;
+  qi::rule<Iterator, std::string()> name, variable;
   qi::rule<Iterator, std::string()> program_stmt, module_stmt;
   qi::rule<Iterator, std::vector<Specification>(), ascii::blank_type> specification_part;
   qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct;
   qi::rule<Iterator, Type_specification(), ascii::blank_type> type_declaration_stmt, declaration_type_spec;
+  qi::rule<Iterator, ast::Expression(), ascii::blank_type> expr, level_2_expr, add_operand, mult_operand, level_1_expr, primary;
   qi::rule<Iterator, Parameter_statement(), ascii::blank_type> parameter_stmt;
-  qi::rule<Iterator, Executable_statement(), ascii::blank_type> execution_part;
+  qi::rule<Iterator, std::vector<Executable_construct>(), ascii::blank_type> execution_part;
+  qi::rule<Iterator, Executable_construct(), ascii::blank_type> executable_construct, action_stmt;
+  qi::rule<Iterator, Assignment_statement(), ascii::blank_type> assignment_stmt;
   qi::rule<Iterator, Subroutine(), ascii::blank_type> internal_subprogram_part;
   qi::rule<Iterator, std::string(), ascii::blank_type> end_program_stmt, end_module_stmt;
   qi::rule<Iterator> blank;
