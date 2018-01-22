@@ -55,18 +55,15 @@ namespace ast {
   struct stringizer : public boost::static_visitor<std::string> {
     std::string operator()(int const constant) const
     {
-      std::cout << "[DEBUG] int:" << constant << std::endl;
       return std::to_string(constant);
     }
     std::string operator()(std::string const var) const
     {
-      std::cout << "[DEBUG] name:" << var << std::endl;
       return var;
     }
     template<operators Binary_op>
     std::string operator()(binary_op<Binary_op> const& op) const
     {
-      std::cout << "[DEBUG] to_string(Binary_op):" << to_string(Binary_op) << std::endl;
       return "("
     	 + boost::apply_visitor(stringizer(), op.lhs)
     	 + to_string(Binary_op)
@@ -262,13 +259,15 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
     // todo
     expr = add_operand [_val = _1]
       >> *(
-	   ('+' >> add_operand [_val = ast::make_binary_operator<ast::operators::add>()])
-	   | ('-' >> add_operand [_val = ast::make_binary_operator<ast::operators::sub>()])
+	   ('+' >> add_operand [_val = phx::construct<ast::binary_op<ast::operators::add> >(_val, _1)])
+	    //[_val = ast::make_binary_operator<ast::operators::add>()])
+	   | ('-' >> add_operand [_val = phx::construct<ast::binary_op<ast::operators::add> >(_val, _1)])
+	   //[_val = ast::make_binary_operator<ast::operators::sub>()])
 	   );
     add_operand = mult_operand [_val = _1]
       >> *(
-	   ('*' >> mult_operand [phx::construct<ast::binary_op<ast::operators::mul> >(_val, _1)])
-	   | ('/' >> mult_operand [phx::construct<ast::binary_op<ast::operators::div> >(_val, _1)])
+	   ('*' >> mult_operand [_val = phx::construct<ast::binary_op<ast::operators::mul> >(_val, _1)])
+	   | ('/' >> mult_operand [_val = phx::construct<ast::binary_op<ast::operators::div> >(_val, _1)])
 	   );
     mult_operand = level_1_expr.alias();
     level_1_expr = primary.alias();
