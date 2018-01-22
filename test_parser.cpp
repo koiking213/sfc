@@ -260,9 +260,7 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
     expr = add_operand [_val = _1]
       >> *(
 	   ('+' >> add_operand [_val = phx::construct<ast::binary_op<ast::operators::add> >(_val, _1)])
-	    //[_val = ast::make_binary_operator<ast::operators::add>()])
 	   | ('-' >> add_operand [_val = phx::construct<ast::binary_op<ast::operators::add> >(_val, _1)])
-	   //[_val = ast::make_binary_operator<ast::operators::sub>()])
 	   );
     add_operand = mult_operand [_val = _1]
       >> *(
@@ -272,9 +270,13 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
     mult_operand = level_1_expr.alias();
     level_1_expr = primary.alias();
     primary =
-      name 
+      name
+      | constant
       | (lit("(") >> expr >> lit(")"));
-    
+
+    // todo
+    constant = int_literal_constant.alias();
+    int_literal_constant %= +qi::digit;
   
   // todo
   //use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;
@@ -309,6 +311,7 @@ struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
   }
 
   qi::rule<Iterator, std::string()> name, variable;
+  qi::rule<Iterator, std::string()> constant, int_literal_constant;
   qi::rule<Iterator, std::string()> program_stmt, module_stmt;
   qi::rule<Iterator, std::vector<Specification>(), ascii::blank_type> specification_part;
   qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct;
