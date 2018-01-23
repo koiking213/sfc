@@ -106,8 +106,10 @@ namespace parser {
   }
 }
 
+#ifdef PARSER_MAIN
 int main()
 {
   parser::do_parse();
   return 0;
 }
+#endif
