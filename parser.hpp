@@ -84,6 +84,9 @@ namespace parser {
     Subroutine subroutines_head;
   };
 
+  Program *do_parse(std::string str, Program &program);
+  void print_program(Program &p);
+
   template <typename Iterator>
   struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
   {

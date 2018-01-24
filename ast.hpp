@@ -22,16 +22,7 @@ namespace ast {
   template <operators Op>
   struct binary_op;
 
-  char const* to_string(operators op)
-  {
-    switch(op) {
-    case operators::add: return "+";
-    case operators::sub: return "-";
-    case operators::mul: return "*";
-    case operators::div: return "/";
-    default: return nullptr;
-    }
-  }
+  char const* to_string(operators op);
 
   using Expression = boost::variant<
     int,
@@ -73,17 +64,5 @@ namespace ast {
     }
   };
   
-   std::string stringize(Expression const& expr)
-   {
-     return boost::apply_visitor(stringizer(), expr);
-   }
-
-  template<operators Op>
-  auto make_binary_operator()
-  {
-    return boost::phoenix::bind(
-				[](auto const& lhs, auto const& rhs){
-				  return binary_op<Op>(lhs, rhs);
-				}, boost::spirit::_val, boost::spirit::_1 );
-  }
+  std::string stringize(Expression const& expr);
 }

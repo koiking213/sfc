@@ -71,7 +71,7 @@ namespace parser {
   }
 
 
-  int test()
+  void test()
   {
     test_parser<std::string::const_iterator> parser;
     std::string input="hoge";
@@ -82,25 +82,16 @@ namespace parser {
     std::cout << result << std::endl;
   }
 
-  int do_parse()
+  Program *do_parse(std::string str, Program &program)
   {
-    //  test();
-    //  exit(0);
     test_parser<std::string::const_iterator> parser;
-    std::string str;
-    std::cin.unsetf(std::ios::skipws);
-    std::copy(std::istream_iterator<char>(std::cin), std::istream_iterator<char>(), std::back_inserter(str));
-    {
-      std::string::const_iterator it = str.begin(), end = str.end();
-      Program program;
-      bool r = phrase_parse(it, end, parser, qi::ascii::blank, program);
-      if (r && it == end) {
-	std::cout << "succeeded:\t" << std::endl;
-      }
-      else {
-	std::cout << "failed:\t" << std::string(it, end) << std::endl;
-      }
-      print_program(program);
+    std::string::const_iterator it = str.begin(), end = str.end();
+    bool r = phrase_parse(it, end, parser, qi::ascii::blank, program);
+    if (r && it == end) {
+      std::cout << "succeeded:\t" << std::endl;
+    }
+    else {
+      std::cout << "failed:\t" << std::string(it, end) << std::endl;
     }
     return 0;
   }
@@ -109,7 +100,14 @@ namespace parser {
 #ifdef PARSER_MAIN
 int main()
 {
-  parser::do_parse();
+  std::string str;
+  std::cin.unsetf(std::ios::skipws);
+  std::copy(std::istream_iterator<char>(std::cin),
+	    std::istream_iterator<char>(),
+	    std::back_inserter(str));
+  parser::Program program;
+  parser::do_parse(str, program);
+  parser::print_program(program);
   return 0;
 }
 #endif

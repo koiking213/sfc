@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include "parser.hpp"
 
 class Line {
 public:
@@ -33,33 +34,29 @@ void lexical_analysis(std::vector<Line> lines) {
 void syntax_analysis(std::vector<Line> lines) {
 }
 
-void semantic_analysis(std::vector<Line> lines) {
+void semantic_analysis(parser::Program &program) {
 }
 
-std::vector<AST> create_IR(std::vector<Line> lines) {
+std::vector<AST> create_IR(const parser::Program &program) {
   std::vector<AST> ast;
   return ast;
 }
 
-std::vector<AST> frontend(std::vector<Line> lines) {
-  lexical_analysis(lines);
-  syntax_analysis(lines);
-  semantic_analysis(lines);
-  return create_IR(lines);
+std::vector<AST> frontend(std::string input) {
+  parser::Program program;
+  parser::do_parse(input, program);
+  parser::print_program(program);
+  semantic_analysis(program);
+  return create_IR(program);
 }
 
 void compile(std::fstream &fs) {
   int line_num = 1;
-  std::vector<Line>  lines;
-  std::string str;
-  while (getline(fs, str)) {
-    lines.push_back(Line(line_num, str));
-    line_num++;
+  std::string str, line;
+  while (getline(fs, line)) {
+    str += line + '\n';
   }
-  for (std::vector<Line>::iterator  it = lines.begin(); it != lines.end(); it++) {
-    it->print();
-  }
-  std::vector<AST> ast = frontend(lines);
+  std::vector<AST> ast = frontend(str);
 }
 
 int main(int argc, char* argv[]) {
