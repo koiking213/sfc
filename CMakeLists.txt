@@ -4,7 +4,7 @@ set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-std=c++11")
 
 # 4.0以上じゃないとだめかも
-find_package(LLVM 3.9 REQUIRED CONFIG)
+find_package(LLVM 4.0 REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
