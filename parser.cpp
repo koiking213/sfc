@@ -1,5 +1,6 @@
 #include "ast.hpp"
 #include "parser.hpp"
+#include "parser_def.hpp"
 #include <iostream>
 #include <string>
 #include <boost/spirit/include/support_utree.hpp>
