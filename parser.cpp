@@ -17,13 +17,6 @@
 #include <boost/variant/apply_visitor.hpp>
 
 namespace parser {
-
-  ast::ProgramUnit *Program::ASTgen()
-  {
-    auto program_unit = new ast::ProgramUnit();
-    return program_unit;
-  }
-
   void print_type_declaration_statement(Type_specification &s)
   {
     std::cout << "type declaration statement, typename=";

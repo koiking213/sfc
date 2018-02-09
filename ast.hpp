@@ -57,29 +57,36 @@ namespace ast {
 
   struct Type {
     enum Type_kind type_kind;
+    Type(Type_kind type_kind) : type_kind(type_kind) {}
   };
 
   struct Variable {
     std::string name;
     Type type;
     int64_t element_num;
+    Variable(std::string name, Type_kind type_kind) : name(name), type(type_kind) {}
     void codegen() const;
   };
 
   struct Statement {
-    void codegen() const;
+    virtual void codegen() const = 0;
   };
 
   struct Assignment_statement : Statement {
     Expression lhs;
     Expression rhs;
+    void codegen() const override;
   };
 
+  // using Statement = boost::variant<
+  //   Assignment_statement*
+  //   >;
+  
   struct ProgramUnit {
     std::string name;
-    std::vector<Variable> variable_declarations;
-    std::vector<Statement> statements;
-    std::vector<ProgramUnit> internal_programs;
+    std::vector<Variable*> variable_declarations;
+    std::vector<Statement*> statements;
+    std::vector<ProgramUnit*> internal_programs;
     void codegen() const;
   };
 }

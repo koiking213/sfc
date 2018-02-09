@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(small_fortran_compiler)
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS "-std=c++11 -g")
 
 # 4.0以上じゃないとだめかも
 find_package(LLVM 4.0 REQUIRED CONFIG)
@@ -18,7 +18,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 # Now build our tools
-add_executable(sfc main.cpp parser.cpp ast.cpp IR_generator.cpp)
+add_executable(sfc main.cpp parser.cpp ast.cpp IR_generator.cpp semantic_analysis.cpp)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use

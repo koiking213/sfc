@@ -47,6 +47,7 @@ namespace parser {
     enum Type_kind type_kind;
     std::string type_name;
     std::vector<std::string> variables;
+    std::vector<ast::Variable *> ASTgen();
   };
 
   struct Named_constant_definition {
@@ -73,7 +74,7 @@ namespace parser {
 
   struct Program {
     std::string name;
-    //  int program_kind; // enum
+    //  int program_ki nd; // enum
     std::vector<Specification> specifications;
     std::vector<Executable_construct> executable_constructs;
     Subroutine subroutines_head;
