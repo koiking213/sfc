@@ -17,36 +17,6 @@ void generate_IR(const ast::ProgramUnit &program) {
 }
 
 namespace ast {
-  // only main program now
-  void ProgramUnit::codegen() const
-  {
-    variable_table.clear();
-    llvm::FunctionType *funcType = 
-      llvm::FunctionType::get(builder.getInt32Ty(), false);
-    llvm::Function *mainFunc = 
-      llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
-    
-    llvm::BasicBlock *entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
-    builder.SetInsertPoint(entry);
-
-    // variable declarations
-    for (auto dec : this->variable_declarations) {
-      dec->codegen();
-    }
-
-    // executable statements
-    for (auto stmt : this->statements) {
-      stmt->codegen();
-    }
-  }
-
-  void Variable::codegen() const
-  {
-    // is just "context" ok for llvm::Type::getInt32Ty(context)?
-    auto value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), 0, this->name);
-    variable_table[this->name] = value;
-  }
-
   struct codegenerator : public boost::static_visitor<llvm::Value *> {
     llvm::Value *operator()(int const value) const
     {
@@ -77,5 +47,41 @@ namespace ast {
     builder.CreateStore(rhs, lhs);
   }
 
+  void stmt_codegen(Statement const stmt)
+  {
+    if (stmt.type() == typeid(Assignment_statement)) {
+      boost::get<Assignment_statement*>(stmt)->codegen();
+    }
+  }
+
+  // only main program now
+  void ProgramUnit::codegen() const
+  {
+    variable_table.clear();
+    llvm::FunctionType *funcType = 
+      llvm::FunctionType::get(builder.getInt32Ty(), false);
+    llvm::Function *mainFunc = 
+      llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
+    
+    llvm::BasicBlock *entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+    builder.SetInsertPoint(entry);
+
+    // variable declarations
+    for (auto dec : this->variable_declarations) {
+      dec->codegen();
+    }
+
+    // executable statements
+    for (auto stmt : this->statements) {
+      stmt_codegen(stmt);
+    }
+  }
+
+  void Variable::codegen() const
+  {
+    // is just "context" ok for llvm::Type::getInt32Ty(context)?
+    auto value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), 0, this->name);
+    variable_table[this->name] = value;
+  }
 
 }

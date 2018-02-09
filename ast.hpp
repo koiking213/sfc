@@ -68,24 +68,20 @@ namespace ast {
     void codegen() const;
   };
 
-  struct Statement {
-    virtual void codegen() const = 0;
-  };
-
-  struct Assignment_statement : Statement {
+  struct Assignment_statement {
     Expression lhs;
     Expression rhs;
-    void codegen() const override;
+    void codegen() const;
   };
 
-  // using Statement = boost::variant<
-  //   Assignment_statement*
-  //   >;
+  using Statement = boost::variant<
+    Assignment_statement*
+    >;
   
   struct ProgramUnit {
     std::string name;
     std::vector<Variable*> variable_declarations;
-    std::vector<Statement*> statements;
+    std::vector<Statement> statements;
     std::vector<ProgramUnit*> internal_programs;
     void codegen() const;
   };
