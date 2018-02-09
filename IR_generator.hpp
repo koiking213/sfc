@@ -1,4 +1,4 @@
 #pragma once
 #include "parser.hpp"
 
-void create_IR(const parser::Program &program);
+void generate_IR(const ast::ProgramUnit &program);

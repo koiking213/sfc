@@ -63,13 +63,8 @@ namespace parser {
     Parameter_statement
     >;
 
-  struct Assignment_statement {
-    ast::Expression lhs;
-    ast::Expression rhs;
-  };
-
   using Executable_construct = boost::variant<
-    Assignment_statement
+    ast::Assignment_statement
     >;
 
   struct Subroutine {
@@ -82,7 +77,9 @@ namespace parser {
     std::vector<Specification> specifications;
     std::vector<Executable_construct> executable_constructs;
     Subroutine subroutines_head;
+    ast::ProgramUnit *ASTgen();
   };
+
 
   Program *do_parse(std::string str, Program &program);
   void print_program(Program &p);
@@ -224,7 +221,7 @@ namespace parser {
     qi::rule<Iterator, Parameter_statement(), ascii::blank_type> parameter_stmt;
     qi::rule<Iterator, std::vector<Executable_construct>(), ascii::blank_type> execution_part;
     qi::rule<Iterator, Executable_construct(), ascii::blank_type> executable_construct, action_stmt;
-    qi::rule<Iterator, Assignment_statement(), ascii::blank_type> assignment_stmt;
+    qi::rule<Iterator, ast::Assignment_statement(), ascii::blank_type> assignment_stmt;
     qi::rule<Iterator, Subroutine(), ascii::blank_type> internal_subprogram_part;
     qi::rule<Iterator, std::string(), ascii::blank_type> end_program_stmt, end_module_stmt;
     qi::rule<Iterator> blank;
@@ -257,7 +254,7 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   )
 
 BOOST_FUSION_ADAPT_STRUCT (
-			   parser::Assignment_statement,
+			   ast::Assignment_statement,
 			   (ast::Expression, lhs)
 			   (ast::Expression, rhs)
 			   )

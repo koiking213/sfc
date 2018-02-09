@@ -45,4 +45,41 @@ namespace ast {
   };
 
   std::string stringize(Expression const& expr);
+
+  enum class Type_kind : int {
+    logical,
+    i32,
+    i64,
+    fp32,
+    fp64,
+    pointer
+  };
+
+  struct Type {
+    enum Type_kind type_kind;
+  };
+
+  struct Variable {
+    std::string name;
+    Type type;
+    int64_t element_num;
+    void codegen() const;
+  };
+
+  struct Statement {
+    void codegen() const;
+  };
+
+  struct Assignment_statement : Statement {
+    Expression lhs;
+    Expression rhs;
+  };
+
+  struct ProgramUnit {
+    std::string name;
+    std::vector<Variable> variable_declarations;
+    std::vector<Statement> statements;
+    std::vector<ProgramUnit> internal_programs;
+    void codegen() const;
+  };
 }

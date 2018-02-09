@@ -4,6 +4,7 @@
 #include <vector>
 #include "parser.hpp"
 #include "IR_generator.hpp"
+#include "ast.hpp"
 
 class Line {
 public:
@@ -15,7 +16,11 @@ public:
 private:
 };
 
-void semantic_analysis(parser::Program &program) {
+// make AST from parsed information
+std::vector<ast::ProgramUnit *> *semantic_analysis(parser::Program &program) {
+  auto *program_units = new std::vector<ast::ProgramUnit *>();
+  program_units->push_back(program.ASTgen());
+  return program_units;
 }
 
 void compile(std::fstream &fs) {
@@ -26,8 +31,10 @@ void compile(std::fstream &fs) {
   parser::Program program;
   parser::do_parse(str, program);
   parser::print_program(program);
-  semantic_analysis(program);
-  create_IR(program);
+  auto programs = semantic_analysis(program);
+  for (auto p : *programs) {
+    generate_IR(*p);
+  }
 }
 
 int main(int argc, char* argv[]) {
