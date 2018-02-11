@@ -18,12 +18,18 @@ void generate_IR(const ast::ProgramUnit &program) {
 
 namespace ast {
   struct codegenerator : public boost::static_visitor<llvm::Value *> {
-    llvm::Value *operator()(int const value) const
+    llvm::Value *operator()(Constant const constant) const
     {
-      return llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), value);
+      if (constant.type() == typeid(Integer_constant)) {
+	int value = boost::get<Integer_constant>(constant).value;
+	return llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), value);
+      } else {
+	return nullptr;
+      }
     }
     llvm::Value *operator()(std::string const var) const
     {
+      std::cout << "!!!!!"<<var << std::endl;
       return builder.CreateLoad(variable_table[var], "var_tmp");
     }
     template<operators Binary_op>
@@ -42,15 +48,16 @@ namespace ast {
 
   void Assignment_statement::codegen() const
   {
-    llvm::Value *lhs = boost::apply_visitor(codegenerator(), this->lhs);
+    assert(this->lhs.type() == typeid(std::string));
+    llvm::Value *lhs = variable_table[boost::get<std::string>(this->lhs)];
     llvm::Value *rhs = boost::apply_visitor(codegenerator(), this->rhs);
     builder.CreateStore(rhs, lhs);
   }
 
-  void stmt_codegen(Statement const stmt)
+  void stmt_codegen(Statement const &stmt)
   {
     if (stmt.type() == typeid(Assignment_statement)) {
-      boost::get<Assignment_statement*>(stmt)->codegen();
+      boost::get<Assignment_statement>(stmt).codegen();
     }
   }
 

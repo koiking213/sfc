@@ -91,7 +91,8 @@ namespace parser {
     test_parser();
 
     qi::rule<Iterator, std::string()> name, variable;
-    qi::rule<Iterator, std::string()> constant, int_literal_constant;
+    qi::rule<Iterator, ast::Constant()> constant;
+    qi::rule<Iterator, ast::Integer_constant()> int_literal_constant;
     qi::rule<Iterator, std::string()> program_stmt, module_stmt;
     qi::rule<Iterator, std::vector<Specification>(), ascii::blank_type> specification_part;
     qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct;
@@ -138,3 +139,7 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   (ast::Expression, rhs)
 			   )
 
+BOOST_FUSION_ADAPT_STRUCT (
+			   ast::Integer_constant,
+			   (int, value)
+			   )

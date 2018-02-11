@@ -94,7 +94,7 @@ namespace parser {
 
       // todo
       constant = int_literal_constant.alias();
-      int_literal_constant %= +qi::digit;
+      int_literal_constant %= qi::int_;
   
       // todo
       //use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;

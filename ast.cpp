@@ -1,9 +1,13 @@
 #include "ast.hpp"
 namespace ast {
   struct stringizer : public boost::static_visitor<std::string> {
-    std::string operator()(int const constant) const
+    std::string operator()(Constant const constant) const
     {
-      return std::to_string(constant);
+      if (constant.type() == typeid(Integer_constant)) {
+	return std::to_string(boost::get<Integer_constant>(constant).value);
+      } else {
+	return "invalid_constant";
+      }
     }
     std::string operator()(std::string const var) const
     {

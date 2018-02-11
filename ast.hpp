@@ -15,6 +15,14 @@
 #include <boost/variant/apply_visitor.hpp>
 
 namespace ast {
+  struct Integer_constant {
+    int value;
+  };
+
+  using Constant = boost::variant<
+    Integer_constant
+    >;
+
   enum struct operators {
     add, sub, mul, div
   };
@@ -25,7 +33,7 @@ namespace ast {
   char const* to_string(operators op);
 
   using Expression = boost::variant<
-    int,
+    Constant,
     std::string,
     boost::recursive_wrapper< binary_op< operators::add > >,
     boost::recursive_wrapper< binary_op< operators::sub > >,
@@ -75,7 +83,7 @@ namespace ast {
   };
 
   using Statement = boost::variant<
-    Assignment_statement*
+    Assignment_statement
     >;
   
   struct ProgramUnit {

@@ -15,7 +15,7 @@ namespace parser {
     }
     for (auto exec : this->executable_constructs) {
       if (exec.type() == typeid(ast::Assignment_statement)) {
-	auto stmt = &(boost::get<ast::Assignment_statement>(exec));
+	auto stmt = boost::get<ast::Assignment_statement>(exec);
 	program_unit->statements.push_back(stmt);
       }
     }
@@ -39,3 +39,5 @@ namespace parser {
     return ast_variables;
   }
 }
+
+
