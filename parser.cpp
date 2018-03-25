@@ -88,7 +88,7 @@ namespace parser {
     std::string::const_iterator it = str.begin(), end = str.end();
     bool r = phrase_parse(it, end, parser, qi::ascii::blank, program);
     if (r && it == end) {
-      std::cout << "succeeded:\t" << std::endl;
+      //std::cout << "succeeded:\t" << std::endl;
     }
     else {
       std::cout << "failed:\t" << std::string(it, end) << std::endl;

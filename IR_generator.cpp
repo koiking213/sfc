@@ -9,11 +9,30 @@ static LLVMContext context;
 static IRBuilder<> builder(context);
 static llvm::Module *module;
 static std::map<std::string, Value *> variable_table;
+static std::map<std::string, Value *> procedure_table;
 
-void generate_IR(const ast::ProgramUnit &program) {
-  module = new llvm::Module("top", context);
-  program.codegen();
-  module->dump( );
+namespace IR_generator {
+  void add_library_prototype_to_module() {
+    std::vector<Type*> int_types(1, llvm::Type::getInt32Ty(context));
+    llvm::FunctionType *func_type =
+      llvm::FunctionType::get(llvm::Type::getInt32Ty(context), int_types, false);
+    llvm::Function *func =
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_simple_print", module);
+    procedure_table["_simple_print"] = func;
+    for (auto &arg : func->args()) {
+      arg.setName("value");
+    }
+  }
+  void generate_IR(const ast::ProgramUnit &program) {
+    module = new llvm::Module("top", context);
+    add_library_prototype_to_module();
+    program.codegen();
+    module->dump( );
+  }
+  llvm::Value *generate_load(std::string name)
+  {
+    return builder.CreateLoad(variable_table[name], "var_tmp");
+  }
 }
 
 namespace ast {
@@ -29,7 +48,6 @@ namespace ast {
     }
     llvm::Value *operator()(std::string const var) const
     {
-      std::cout << "!!!!!"<<var << std::endl;
       return builder.CreateLoad(variable_table[var], "var_tmp");
     }
     template<operators Binary_op>
@@ -54,10 +72,22 @@ namespace ast {
     builder.CreateStore(rhs, lhs);
   }
 
+  void Output_statement::codegen() const
+  {
+    llvm::Function *callee = module->getFunction("_simple_print");
+    std::string var_name = boost::get<std::string>(this->elements[0]);
+    std::vector<llvm::Value*> args;
+    args.push_back(IR_generator::generate_load(var_name));
+    builder.CreateCall(callee, args, "call_tmp");
+  }
+
+  // todo: visitor pattern
   void stmt_codegen(Statement const &stmt)
   {
     if (stmt.type() == typeid(Assignment_statement)) {
       boost::get<Assignment_statement>(stmt).codegen();
+    } else if (stmt.type() == typeid(Output_statement)) {
+      boost::get<Output_statement>(stmt).codegen();
     }
   }
 
@@ -65,12 +95,14 @@ namespace ast {
   void ProgramUnit::codegen() const
   {
     variable_table.clear();
-    llvm::FunctionType *funcType = 
-      llvm::FunctionType::get(builder.getInt32Ty(), false);
-    llvm::Function *mainFunc = 
-      llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
+    procedure_table.clear();
     
-    llvm::BasicBlock *entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+    llvm::FunctionType *func_type =
+      llvm::FunctionType::get(builder.getInt32Ty(), false);
+    llvm::Function *main_func =
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "main", module);
+    
+    llvm::BasicBlock *entry = llvm::BasicBlock::Create(context, "entrypoint", main_func);
     builder.SetInsertPoint(entry);
 
     // variable declarations
@@ -82,6 +114,8 @@ namespace ast {
     for (auto stmt : this->statements) {
       stmt_codegen(stmt);
     }
+
+    builder.CreateRet(builder.getInt32(0));
   }
 
   void Variable::codegen() const

@@ -17,6 +17,9 @@ namespace parser {
       if (exec.type() == typeid(ast::Assignment_statement)) {
 	auto stmt = boost::get<ast::Assignment_statement>(exec);
 	program_unit->statements.push_back(stmt);
+      } else if (exec.type() == typeid(parser::Print_statement)) {
+	auto stmt = boost::get<Print_statement>(exec).ASTgen();
+	program_unit->statements.push_back(*stmt);
       }
     }
     return program_unit;
@@ -37,6 +40,15 @@ namespace parser {
       ast_variables.push_back(var);
     }
     return ast_variables;
+  }
+
+  ast::Output_statement *Print_statement::ASTgen()
+  {
+    auto ast_output_stmt = new ast::Output_statement();
+    for (std::string elm : this->elements) {
+      ast_output_stmt->elements.push_back(elm);
+    }
+    return ast_output_stmt;
   }
 }
 

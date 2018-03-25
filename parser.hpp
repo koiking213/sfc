@@ -64,8 +64,14 @@ namespace parser {
     Parameter_statement
     >;
 
+  struct Print_statement {
+    std::vector<std::string> elements;
+    ast::Output_statement *ASTgen();
+  };
+
   using Executable_construct = boost::variant<
-    ast::Assignment_statement
+    ast::Assignment_statement,
+    Print_statement
     >;
 
   struct Subroutine {
@@ -102,6 +108,7 @@ namespace parser {
     qi::rule<Iterator, std::vector<Executable_construct>(), ascii::blank_type> execution_part;
     qi::rule<Iterator, Executable_construct(), ascii::blank_type> executable_construct, action_stmt;
     qi::rule<Iterator, ast::Assignment_statement(), ascii::blank_type> assignment_stmt;
+    qi::rule<Iterator, Print_statement(), ascii::blank_type> print_stmt;
     qi::rule<Iterator, Subroutine(), ascii::blank_type> internal_subprogram_part;
     qi::rule<Iterator, std::string(), ascii::blank_type> end_program_stmt, end_module_stmt;
     qi::rule<Iterator> blank;
@@ -142,4 +149,9 @@ BOOST_FUSION_ADAPT_STRUCT (
 BOOST_FUSION_ADAPT_STRUCT (
 			   ast::Integer_constant,
 			   (int, value)
+			   )
+
+BOOST_FUSION_ADAPT_STRUCT (
+			   parser::Print_statement,
+			   (std::vector<std::string>, elements)
 			   )

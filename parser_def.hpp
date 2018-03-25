@@ -61,7 +61,9 @@ namespace parser {
       executable_construct = action_stmt.alias();
 
       // todo
-      action_stmt = assignment_stmt.alias();
+      action_stmt =
+	assignment_stmt |
+	print_stmt;
 
       // todo
       assignment_stmt =
@@ -69,7 +71,10 @@ namespace parser {
 	>> lit("=")
 	>> expr[at_c<1>(_val) = _1] >> eol;
 
-      //assignment_stmt = variable >> lit("=") >> varia >> eol;
+      // todo
+      print_stmt =
+	lit("print") >> lit("*") >> lit(",") >>
+	variable[push_back(at_c<0>(_val), _1)] % qi::char_(',') >> eol;
     
       // todo
       variable = name.alias();

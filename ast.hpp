@@ -74,6 +74,7 @@ namespace ast {
     int64_t element_num;
     Variable(std::string name, Type_kind type_kind) : name(name), type(type_kind) {}
     void codegen() const;
+    void codegen_load() const;
   };
 
   struct Assignment_statement {
@@ -82,8 +83,15 @@ namespace ast {
     void codegen() const;
   };
 
+  
+  struct Output_statement {
+    std::vector<boost::variant<int, std::string> > elements;
+    void codegen() const;
+  };
+
   using Statement = boost::variant<
-    Assignment_statement
+    Assignment_statement,
+    Output_statement
     >;
   
   struct ProgramUnit {

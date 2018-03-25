@@ -1,4 +1,6 @@
 #pragma once
 #include "parser.hpp"
 
-void generate_IR(const ast::ProgramUnit &program);
+namespace IR_generator {
+  void generate_IR(const ast::ProgramUnit &program);
+}

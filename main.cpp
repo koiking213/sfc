@@ -33,7 +33,7 @@ void compile(std::fstream &fs) {
   parser::print_program(program);
   auto programs = semantic_analysis(program);
   for (auto p : *programs) {
-    generate_IR(*p);
+    IR_generator::generate_IR(*p);
   }
 }
 
