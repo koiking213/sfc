@@ -1,5 +1,9 @@
 *~
 *.o
+*.ll
+*.s
+sfc
+*.f90
 a.out
 Makefile
 CMakeCache.txt
