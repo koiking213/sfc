@@ -1,5 +1,6 @@
 #include "ast.hpp"
 #include "parser.hpp"
+#include "parser_def.hpp"
 #include <iostream>
 #include <string>
 #include <boost/spirit/include/support_utree.hpp>
@@ -16,7 +17,6 @@
 #include <boost/variant/apply_visitor.hpp>
 
 namespace parser {
-
   void print_type_declaration_statement(Type_specification &s)
   {
     std::cout << "type declaration statement, typename=";
@@ -43,7 +43,7 @@ namespace parser {
     }
   }
 
-  void print_assignment_statement(Assignment_statement &st)
+  void print_assignment_statement(ast::Assignment_statement &st)
   {
     std::cout << "lhs:" << ast::stringize(st.lhs) << std::endl;
     std::cout << "rhs:" << ast::stringize(st.rhs) << std::endl;
@@ -51,8 +51,8 @@ namespace parser {
 
   void print_executable_construct(Executable_construct &exec)
   {
-    if (exec.type() == typeid(Assignment_statement)) {
-      print_assignment_statement(boost::get<Assignment_statement>(exec));
+    if (exec.type() == typeid(ast::Assignment_statement)) {
+      print_assignment_statement(boost::get<ast::Assignment_statement>(exec));
     } else {
       std::cout << "unknown executable construct" << std::endl;
     }
@@ -88,7 +88,7 @@ namespace parser {
     std::string::const_iterator it = str.begin(), end = str.end();
     bool r = phrase_parse(it, end, parser, qi::ascii::blank, program);
     if (r && it == end) {
-      std::cout << "succeeded:\t" << std::endl;
+      //std::cout << "succeeded:\t" << std::endl;
     }
     else {
       std::cout << "failed:\t" << std::string(it, end) << std::endl;

@@ -47,6 +47,7 @@ namespace parser {
     enum Type_kind type_kind;
     std::string type_name;
     std::vector<std::string> variables;
+    std::vector<ast::Variable *> ASTgen();
   };
 
   struct Named_constant_definition {
@@ -63,13 +64,14 @@ namespace parser {
     Parameter_statement
     >;
 
-  struct Assignment_statement {
-    ast::Expression lhs;
-    ast::Expression rhs;
+  struct Print_statement {
+    std::vector<std::string> elements;
+    ast::Output_statement *ASTgen();
   };
 
   using Executable_construct = boost::variant<
-    Assignment_statement
+    ast::Assignment_statement,
+    Print_statement
     >;
 
   struct Subroutine {
@@ -78,11 +80,13 @@ namespace parser {
 
   struct Program {
     std::string name;
-    //  int program_kind; // enum
+    //  int program_ki nd; // enum
     std::vector<Specification> specifications;
     std::vector<Executable_construct> executable_constructs;
     Subroutine subroutines_head;
+    ast::ProgramUnit *ASTgen();
   };
+
 
   Program *do_parse(std::string str, Program &program);
   void print_program(Program &p);
@@ -90,132 +94,11 @@ namespace parser {
   template <typename Iterator>
   struct test_parser : qi::grammar<Iterator, Program(), ascii::blank_type>
   {
-    test_parser() : test_parser::base_type(start)
-    {
-      using qi::int_;
-      using qi::lit;
-      using qi::double_;
-      using qi::lexeme;
-      using qi::eol;
-      using ascii::char_;
-      using boost::spirit::qi::_1;
-      using boost::spirit::qi::_2;
-      using boost::spirit::qi::_val;
-      using boost::phoenix::at_c;
-      using boost::phoenix::push_back;
-      namespace phx = boost::phoenix;
-
-      bool fixed=false;
-      if (fixed) {
-	blank = "";
-      } else {
-	blank = +qi::ascii::blank;
-      }
-    
-      name = qi::ascii::alpha >> *(qi::ascii::alpha | qi::digit | qi::char_('_'));
-
-      start %=
-	main_program | module;
-
-      main_program %=
-	-program_stmt
-	>> specification_part
-	>> execution_part
-	//      >> internal_subprogram_part
-	>> end_program_stmt
-	;
-    
-      program_stmt = lit("program") >> blank >> name [_val = _1] >> eol;
-
-      end_program_stmt =
-	(lit("end") >> lit("program") >> name >> eol) [_val = _1] |
-	(lit("end") >> -(lit("program")) >> eol)      [_val = ""];
-
-      end_module_stmt =
-	lit("end") >>
-	-(blank >> lit("module") >> -(blank >> name[_val = _1]));
-
-      // todo
-      specification_part =
-	/* *use_stmt                 [push_back(_val, _1)]
-	   >>*/ *declaration_construct [push_back(_val, _1)];
-
-      // todo
-      execution_part = +executable_construct;
-    
-      // todo
-      executable_construct = action_stmt.alias();
-
-      // todo
-      action_stmt = assignment_stmt.alias();
-
-      // todo
-      assignment_stmt =
-	variable[at_c<0>(_val) = _1]
-	>> lit("=")
-	>> expr[at_c<1>(_val) = _1] >> eol;
-
-      //assignment_stmt = variable >> lit("=") >> varia >> eol;
-    
-      // todo
-      variable = name.alias();
-
-      // todo
-      expr = add_operand [_val = _1]
-	>> *(
-	     ('+' >> add_operand [_val = phx::construct<ast::binary_op<ast::operators::add> >(_val, _1)])
-	     | ('-' >> add_operand [_val = phx::construct<ast::binary_op<ast::operators::add> >(_val, _1)])
-	     );
-      add_operand = mult_operand [_val = _1]
-	>> *(
-	     ('*' >> mult_operand [_val = phx::construct<ast::binary_op<ast::operators::mul> >(_val, _1)])
-	     | ('/' >> mult_operand [_val = phx::construct<ast::binary_op<ast::operators::div> >(_val, _1)])
-	     );
-      mult_operand = level_1_expr.alias();
-      level_1_expr = primary.alias();
-      primary =
-	name
-	| constant
-	| (lit("(") >> expr >> lit(")"));
-
-      // todo
-      constant = int_literal_constant.alias();
-      int_literal_constant %= +qi::digit;
-  
-      // todo
-      //use_stmt = lit("use statement") [at_c<0>(_val) = Specification_kind::Use_statement] >> eol;
-
-      // todo
-      //declaration_construct = lit("declaration construct") [at_c<0>(_val) = Specification_kind::Implicit_statement];
-      declaration_construct = type_declaration_stmt.alias(); /*| parameter_stmt*/
-      type_declaration_stmt =
-	declaration_type_spec [_val = _1]
-	>> name [push_back(at_c<2>(_val), _1)] % qi::char_(',')>> eol;
-  
-      // todo
-      declaration_type_spec = lit("integer") [at_c<0>(_val) = Type_kind::Intrinsic,
-					      at_c<1>(_val) = "integer"];
-
-      // todo
-      //parameter_stmt = lit("parameter") [at_c<0>(_val) = Specification_kind::Parameter_statement];
-  
-      // todo
-      module %=
-	module_stmt
-	>> specification_part
-	>> execution_part
-	>> internal_subprogram_part
-	>> end_module_stmt
-	;
-
-      module_stmt %=
-	lit("module")
-	>> name
-	;
-    }
+    test_parser();
 
     qi::rule<Iterator, std::string()> name, variable;
-    qi::rule<Iterator, std::string()> constant, int_literal_constant;
+    qi::rule<Iterator, ast::Constant()> constant;
+    qi::rule<Iterator, ast::Integer_constant()> int_literal_constant;
     qi::rule<Iterator, std::string()> program_stmt, module_stmt;
     qi::rule<Iterator, std::vector<Specification>(), ascii::blank_type> specification_part;
     qi::rule<Iterator, Specification(), ascii::blank_type> use_stmt, declaration_construct;
@@ -224,7 +107,8 @@ namespace parser {
     qi::rule<Iterator, Parameter_statement(), ascii::blank_type> parameter_stmt;
     qi::rule<Iterator, std::vector<Executable_construct>(), ascii::blank_type> execution_part;
     qi::rule<Iterator, Executable_construct(), ascii::blank_type> executable_construct, action_stmt;
-    qi::rule<Iterator, Assignment_statement(), ascii::blank_type> assignment_stmt;
+    qi::rule<Iterator, ast::Assignment_statement(), ascii::blank_type> assignment_stmt;
+    qi::rule<Iterator, Print_statement(), ascii::blank_type> print_stmt;
     qi::rule<Iterator, Subroutine(), ascii::blank_type> internal_subprogram_part;
     qi::rule<Iterator, std::string(), ascii::blank_type> end_program_stmt, end_module_stmt;
     qi::rule<Iterator> blank;
@@ -257,8 +141,17 @@ BOOST_FUSION_ADAPT_STRUCT (
 			   )
 
 BOOST_FUSION_ADAPT_STRUCT (
-			   parser::Assignment_statement,
+			   ast::Assignment_statement,
 			   (ast::Expression, lhs)
 			   (ast::Expression, rhs)
 			   )
 
+BOOST_FUSION_ADAPT_STRUCT (
+			   ast::Integer_constant,
+			   (int, value)
+			   )
+
+BOOST_FUSION_ADAPT_STRUCT (
+			   parser::Print_statement,
+			   (std::vector<std::string>, elements)
+			   )
