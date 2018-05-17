@@ -5,40 +5,35 @@
 #include "parser.hpp"
 #include "IR_generator.hpp"
 #include "ast.hpp"
+/* program -> CST -> AST -> IR */
+/* CST -> ASTでエラーチェックを行い、AST -> IRは機械的に行う */
 
-class Line {
-public:
-  int line_num;
-  std::string raw_data;
-  std::vector<std::string> tokens;
-  Line(int line_num, std::string s) : line_num(line_num), raw_data(s) {}
-  void print() { std::cout << line_num << " " << raw_data << std::endl; }
-private:
-};
-
-// make AST from parsed information
-std::vector<ast::ProgramUnit *> *semantic_analysis(parser::Program &program) {
-  auto *program_units = new std::vector<ast::ProgramUnit *>();
-  program_units->push_back(program.ASTgen());
-  return program_units;
-}
+// class Line {
+// public:
+//   int line_num;
+//   std::string raw_data;
+//   std::vector<std::string> tokens;
+//   Line(int line_num, std::string s) : line_num(line_num), raw_data(s) {}
+//   void print() { std::cout << line_num << " " << raw_data << std::endl; }
+// private:
+// };
 
 void compile(std::fstream &fs) {
   std::string str, line;
   while (getline(fs, line)) {
     str += line + '\n';
   }
-  parser::Program program;
-  parser::do_parse(str, program);
-  parser::print_program(program);
-  auto programs = semantic_analysis(program);
-  for (auto p : *programs) {
-    IR_generator::generate_IR(*p);
-  }
+  std::unique_ptr<cst::Program> cst_program = parser::parse(str);
+  // std::cout << "=== CST ===" << std::endl;
+  // cst_program->print();
+  std::shared_ptr<ast::Program_unit> ast_program = cst_program->ASTgen();
+  // std::cout << std::endl << "=== AST ===" << std::endl;
+  // ast_program->print("");
+  IR_generator::generate_IR(ast_program);
 }
 
 int main(int argc, char* argv[]) {
-  std::cout << argv[1] << std::endl;
+  //std::cout << argv[1] << std::endl;
   std::fstream fs;
   fs.open(argv[1], std::fstream::in);
   compile(fs);

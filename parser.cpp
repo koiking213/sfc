@@ -1,99 +1,249 @@
-#include "ast.hpp"
 #include "parser.hpp"
-#include "parser_def.hpp"
-#include <iostream>
+#include "cst.hpp"
 #include <string>
-#include <boost/spirit/include/support_utree.hpp>
-#include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/phoenix.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_fusion.hpp>
-#include <boost/spirit/include/phoenix_stl.hpp>
-#include <boost/fusion/include/adapt_struct.hpp>
-#include <boost/fusion/include/io.hpp>
-#include <boost/variant/recursive_wrapper.hpp>
-#include <boost/variant/static_visitor.hpp>
-#include <boost/variant/apply_visitor.hpp>
+#include <iostream>
+#include <algorithm>
+#include <memory>
+#include <ctype.h>
 
-namespace parser {
-  void print_type_declaration_statement(Type_specification &s)
+using namespace cst;
+
+namespace parser{
+  std::unique_ptr<Expression> parse_expression();
+  // TODO: multiple Program Unit
+  // TODO: fixed form
+  // TODO: continuous line
+  int ofs;
+  std::string source; // lower
+  std::string source_orig; // same as user described, for error message
+  bool is_blank(char c)
   {
-    std::cout << "type declaration statement, typename=";
-    if (s.type_kind == Type_kind::Intrinsic) {
-      std::cout << s.type_name << std::endl;
+    if (c == ' ' || c == '\t') {
+      return true;
+    }
+    return false;
+  }
+  void skip_blanks()
+  {
+    while (is_blank(source[ofs])) {
+      ofs++;
+    }
+  }
+  std::string read_name()
+  {
+    skip_blanks();
+    if (!isalpha(source[ofs])) {
+      return "";
+    }
+    int begin = ofs;
+    while (isalpha(source[ofs]) ||
+	   isdigit(source[ofs]) ||
+	   source[ofs] == '_') {
+      ofs++;
+    }
+    return source.substr(begin, ofs-begin);
+  }
+  bool read_one_blank()
+  {
+    if (is_blank(source[ofs])) {
+      ofs++;
+      return true;
+    }
+    return false;
+  }
+  bool is_end_of_line()
+  {
+    skip_blanks();
+    return source[ofs] == '\n';
+  }
+  void skip_blank_lines()
+  {
+    while (is_blank(source[ofs]) || source[ofs] == '\n' ) {
+      ofs++;
+    }
+  }
+  bool read_token(const std::string str)
+  {
+    skip_blanks();
+    if (std::equal(str.begin(), str.end(), source.begin()+ofs)) {
+      ofs += str.size();
+      return true;
     } else {
-      std::cout << "not supported yet" << std::endl;
+      return false;
     }
-    std::cout << "variables:" ;
-    for (auto v : s.variables) {
-      std::cout << v << ","; // last comma should be removed
+  }
+  std::unique_ptr<Constant> read_constant()
+  {
+    if (!isdigit(source[ofs])) {
+      return nullptr;
     }
-    std::cout << std::endl;
+    int begin = ofs;
+    // TOOD: other than integer
+    while (isdigit(source[ofs])) {
+      ofs++;
+    }
+    std::string value = source.substr(begin, ofs-begin);
+    std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "integer", value) };
+    return std::move(cnt);
+  }
+  std::unique_ptr<Program> parse_program_stmt()
+  {
+    skip_blank_lines();
+    read_token("program");
+    read_one_blank();
+    std::string name = read_name();
+    if (name == "") {
+      // error
+    }
+    if (!is_end_of_line()) {
+      // error
+    }
+    std::unique_ptr<Program> program {new Program(name)};
+    return std::move(program);
   }
 
-  void print_specification(Specification &spec)
+  std::unique_ptr<Specification> parse_type_declaration()
   {
-    if (spec.type() == typeid(Type_specification)) {
-      print_type_declaration_statement(boost::get<Type_specification>(spec));
-    } else if (spec.type() == typeid(Parameter_statement)) {
-      //print_parameter_statement(boost::get<Type_specification>(spec));
+    skip_blank_lines();
+    std::unique_ptr<Type_specification> spec {new Type_specification};
+    if (read_token("integer")) {
+      spec->type_kind = Type_kind::Intrinsic;
+      spec->type_name = "integer";
     } else {
-      std::cout << "unknown specification" << std::endl;
+      return nullptr;
+    }
+    read_one_blank(); // TOOD: semicolon should be also accepted
+    std::string name = read_name();
+    spec->variables.push_back(name);
+    while (read_token(",")) {
+      name = read_name();
+      spec->variables.push_back(name);
+    }
+    return std::move(spec);
+  }
+  
+  std::unique_ptr<Specification> parse_declaration_construct()
+  {
+    return parse_type_declaration();
+  }
+  
+  void parse_specification_part(std::vector<std::unique_ptr<Specification>> &specifications)
+  {
+    std::unique_ptr<Specification> spec;
+    while ((spec = parse_declaration_construct())) {
+      specifications.push_back(std::move(spec));
     }
   }
-
-  void print_assignment_statement(ast::Assignment_statement &st)
+  std::unique_ptr<Expression> parse_mult_operand()
   {
-    std::cout << "lhs:" << ast::stringize(st.lhs) << std::endl;
-    std::cout << "rhs:" << ast::stringize(st.rhs) << std::endl;
+    std::string name = read_name();
+    if (name != "") {
+      return static_cast<std::unique_ptr<Expression>>(new Variable(name));
+    }
+    std::unique_ptr<Constant> value = read_constant();
+    if (value != nullptr) {
+      return static_cast<std::unique_ptr<Expression>>(std::move(value));
+    }
+    if (read_token("(")) {
+      std::unique_ptr<Expression> exp = parse_expression();
+      read_token(")");
+      return std::move(exp);
+    }
+    return nullptr;
   }
-
-  void print_executable_construct(Executable_construct &exec)
+  std::unique_ptr<Expression> parse_add_operand()
   {
-    if (exec.type() == typeid(ast::Assignment_statement)) {
-      print_assignment_statement(boost::get<ast::Assignment_statement>(exec));
+    std::unique_ptr<Expression> exp { new Expression() };
+    std::unique_ptr<Expression> left = parse_mult_operand();
+    if (read_token("*")) {
+      exp->set_operator("*");
+    } else if (read_token("/")) {
+      exp->set_operator("/");
     } else {
-      std::cout << "unknown executable construct" << std::endl;
+      return std::move(left);
+    }
+    exp->add_operand(std::move(left));
+    exp->add_operand(parse_expression());
+    return std::move(exp);
+  }
+  std::unique_ptr<Expression> parse_expression()
+  {
+    std::unique_ptr<Expression> exp { new Expression() };
+    std::unique_ptr<Expression> left = parse_add_operand();
+    if (read_token("+")) {
+      exp->set_operator("+");
+    } else if (read_token("-")) {
+      exp->set_operator("-");
+    } else {
+      return std::move(left);
+    }
+    exp->add_operand(std::move(left));
+    exp->add_operand(parse_expression());
+    return std::move(exp);
+  }
+  std::unique_ptr<Assignment_statement> parse_assignment_stmt()
+  {
+    int saved_offset = ofs;
+    std::unique_ptr<Assignment_statement> assignment_stmt {new Assignment_statement()};
+    // only variable is acceptable as a left side of assignment statement
+    std::string name = read_name();
+    if (!read_token("=")) {
+      ofs = saved_offset; // roll back
+      return nullptr;
+    }
+    assignment_stmt->set_lhs(name);
+    assignment_stmt->set_rhs(parse_expression());
+    return std::move(assignment_stmt);
+  }
+  std::unique_ptr<Print_statement> parse_print_stmt()
+  {
+    std::unique_ptr<Print_statement> print_stmt { new Print_statement() };
+    // "print" is already read
+    read_token("*");
+    read_token(",");
+    print_stmt->add_element(parse_expression());
+    while (read_token(",")) {
+      print_stmt->add_element(parse_expression());
+    }
+    return std::move(print_stmt);
+  }
+  std::unique_ptr<Executable_construct> parse_action_stmt()
+  {
+    skip_blank_lines();
+    std::unique_ptr<Executable_construct> exec = parse_assignment_stmt();
+    if (exec) {
+      return exec;
+    }
+    if (read_token("print")) {
+      return parse_print_stmt();
+    }
+    return nullptr;
+  }
+  std::unique_ptr<Executable_construct> parse_executable_constructs()
+  {
+    return parse_action_stmt();
+  }
+  void parse_executable_part(std::vector<std::unique_ptr<Executable_construct>> &executable_constructs)
+  {
+    std::unique_ptr<Executable_construct> exec;
+    while ((exec = parse_executable_constructs())) {
+      executable_constructs.push_back(std::move(exec));
     }
   }
-
-  void print_program(Program &p)
+  std::unique_ptr<Program> parse_main_program()
   {
-    std::cout << "program name: " << p.name << std::endl;
-    std::cout << "specifications:" << std::endl;
-    for(auto spec : p.specifications) {
-      print_specification(spec);
-    }
-    for(auto exec : p.executable_constructs) {
-      print_executable_construct(exec);
-    }
+    std::unique_ptr<Program> program = parse_program_stmt();
+    parse_specification_part(program->specifications);
+    parse_executable_part(program->executable_constructs);
+    return std::move(program);
   }
-
-
-  void test()
+  std::unique_ptr<Program> parse(const std::string str)
   {
-    test_parser<std::string::const_iterator> parser;
-    std::string input="hoge";
-    std::string result;
-    //test_parser(input, parser.name, result);
-    std::string::const_iterator it = input.begin(), end = input.end();
-    parse(it, end, parser.name, result);
-    std::cout << result << std::endl;
-  }
-
-  Program *do_parse(std::string str, Program &program)
-  {
-    test_parser<std::string::const_iterator> parser;
-    std::string::const_iterator it = str.begin(), end = str.end();
-    bool r = phrase_parse(it, end, parser, qi::ascii::blank, program);
-    if (r && it == end) {
-      //std::cout << "succeeded:\t" << std::endl;
-    }
-    else {
-      std::cout << "failed:\t" << std::string(it, end) << std::endl;
-    }
-    return 0;
+    ofs = 0;
+    source_orig = str;
+    source = str;
+    std::transform(source.begin(), source.end(), source.begin(), tolower);
+    return std::move(parse_main_program());
   }
 }
 
@@ -102,12 +252,11 @@ int main()
 {
   std::string str;
   std::cin.unsetf(std::ios::skipws);
-  std::copy(std::istream_iterator<char>(std::cin),
-	    std::istream_iterator<char>(),
+  std::copy(std::istreambuf_iterator<char>(std::cin),
+	    std::istreambuf_iterator<char>(),
 	    std::back_inserter(str));
-  parser::Program program;
-  parser::do_parse(str, program);
-  parser::print_program(program);
+  std::unique_ptr<Program> program = parser::parse(str);
+  program->print();
   return 0;
 }
 #endif

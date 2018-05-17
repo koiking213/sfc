@@ -1,59 +1,38 @@
 #pragma once
 #include <iostream>
 #include <string>
-#include <boost/spirit/include/support_utree.hpp>
-#include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/phoenix.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_fusion.hpp>
-#include <boost/spirit/include/phoenix_stl.hpp>
-#include <boost/fusion/include/adapt_struct.hpp>
-#include <boost/fusion/include/io.hpp>
-#include <boost/variant/recursive_wrapper.hpp>
-#include <boost/variant/static_visitor.hpp>
-#include <boost/variant/apply_visitor.hpp>
+#include "llvm/IR/IRBuilder.h"
+// #include <boost/spirit/include/support_utree.hpp>
+// //#include <boost/spirit/include/qi.hpp>
+// #include <boost/spirit/include/phoenix.hpp>
+// #include <boost/spirit/include/phoenix_core.hpp>
+// #include <boost/spirit/include/phoenix_operator.hpp>
+// #include <boost/spirit/include/phoenix_fusion.hpp>
+// #include <boost/spirit/include/phoenix_stl.hpp>
+// #include <boost/fusion/include/adapt_struct.hpp>
+// #include <boost/fusion/include/io.hpp>
+// #include <boost/variant/recursive_wrapper.hpp>
+// #include <boost/variant/static_visitor.hpp>
+// #include <boost/variant/apply_visitor.hpp>
 
 namespace ast {
-  struct Integer_constant {
-    int value;
+  enum class operators {
+    add, sub, mul, div, leaf
   };
 
-  using Constant = boost::variant<
-    Integer_constant
-    >;
-
-  enum struct operators {
-    add, sub, mul, div
+  class Expression {
+  public:
+    void set_operator(enum operators op) {this->exp_operator = op;}
+    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
+    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
+    virtual void print() const;
+    virtual llvm::Value *codegen() const;
+  private:
+    enum operators exp_operator;
+    std::unique_ptr<Expression> lhs;
+    std::unique_ptr<Expression> rhs;
   };
-
-  template <operators Op>
-  struct binary_op;
-
-  char const* to_string(operators op);
-
-  using Expression = boost::variant<
-    Constant,
-    std::string,
-    boost::recursive_wrapper< binary_op< operators::add > >,
-    boost::recursive_wrapper< binary_op< operators::sub > >,
-    boost::recursive_wrapper< binary_op< operators::mul > >,
-    boost::recursive_wrapper< binary_op< operators::div > >
-    >;
-
-  template <operators Op>
-  struct binary_op
-  {
-    Expression lhs;
-    Expression rhs;
-    
-    binary_op(Expression const& lhs_, Expression const& rhs_) :
-      lhs( lhs_ ), rhs( rhs_ )
-    { }
-  };
-
-  std::string stringize(Expression const& expr);
-
+  
   enum class Type_kind : int {
     logical,
     i32,
@@ -63,42 +42,91 @@ namespace ast {
     pointer
   };
 
-  struct Type {
+  class Constant : public Expression {
+  public:
+    virtual void print() const = 0;
+    virtual llvm::Value *codegen() const = 0;
     enum Type_kind type_kind;
-    Type(Type_kind type_kind) : type_kind(type_kind) {}
   };
 
-  struct Variable {
+  class Int32_constant : public Constant {
+  public:
+    Int32_constant(int32_t val) {this->value = val;}
+    void print() const;
+    llvm::Value *codegen() const;
+    int32_t get_value() {return value;}
+  private:
+    int32_t value;
+  };
+
+  class Variable_reference : public Expression {
+  public:
+    // TODO: この時点で変数のmapを持っておいてそれを指すほうが良さそう?
+    void print() const;
+    llvm::Value *codegen() const;
+    Variable_reference(std::string name) {this->name = name;}
+  private:
+    std::string name;
+  };
+  
+  class Type {
+  public:
+    Type(Type_kind type_kind) : type_kind(type_kind) {}
+    void print() const;
+  private:
+    enum Type_kind type_kind;
+  };
+
+  class Variable {
+  public:
+    Variable(std::string name, Type_kind type_kind) : name(name), type(type_kind) {}
+    void print(std::string indent) const;
+    void codegen() const;
+  private:
     std::string name;
     Type type;
-    int64_t element_num;
-    Variable(std::string name, Type_kind type_kind) : name(name), type(type_kind) {}
-    void codegen() const;
-    void codegen_load() const;
+    int64_t element_num=0;
   };
 
-  struct Assignment_statement {
-    Expression lhs;
-    Expression rhs;
-    void codegen() const;
+  class Statement {
+  public:
+    virtual void print(std::string indent) const = 0;
+    virtual void codegen() const = 0;
   };
 
-  
-  struct Output_statement {
-    std::vector<boost::variant<int, std::string> > elements;
+  class Assignment_statement : public Statement {
+  public:
+    void print(std::string indent) const;
     void codegen() const;
+    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
+    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
+  private:
+    std::unique_ptr<Expression> lhs;
+    std::unique_ptr<Expression> rhs;
   };
 
-  using Statement = boost::variant<
-    Assignment_statement,
-    Output_statement
-    >;
-  
-  struct ProgramUnit {
+  class Output_statement : public Statement {
+  public:
+    void print(std::string indent) const;
+    void codegen() const;
+    void add_element(std::unique_ptr<Expression> elm) {this->elements.push_back(std::move(elm));};
+  private:
+    std::vector<std::unique_ptr<Expression>> elements;
+  };
+
+  class Program_unit {
+  public:
+    void print(std::string indent) const;
+    void codegen() const;
+    Program_unit(std::string name) {this->name = name; }
+    void add_variable_decl(std::unique_ptr<Variable> var) {this->variable_declarations.push_back(std::move(var));};
+    void add_statement(std::unique_ptr<Statement> stmt) {this->statements.push_back(std::move(stmt));};
+    void add_internal_program(std::unique_ptr<Program_unit>);
+    //std::map<std::string, llvm::Value *>
+    std::vector<std::unique_ptr<Variable>> variable_declarations; // vector以外にいいのがあるかも
+  private:
     std::string name;
-    std::vector<Variable*> variable_declarations;
-    std::vector<Statement> statements;
-    std::vector<ProgramUnit*> internal_programs;
-    void codegen() const;
+    std::vector<std::unique_ptr<Statement>> statements;
+    std::vector<std::shared_ptr<Program_unit>> internal_programs;
   };
 }
