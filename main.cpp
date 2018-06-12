@@ -18,12 +18,12 @@
 // private:
 // };
 
-void compile(std::fstream &fs) {
+void compile(std::fstream &fs, std::string filename) {
   std::string str, line;
   while (getline(fs, line)) {
     str += line + '\n';
   }
-  std::unique_ptr<cst::Program> cst_program = parser::parse(str);
+  std::unique_ptr<cst::Program> cst_program = parser::parse(str, filename);
   // std::cout << "=== CST ===" << std::endl;
   // cst_program->print();
   std::shared_ptr<ast::Program_unit> ast_program = cst_program->ASTgen();
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
   //std::cout << argv[1] << std::endl;
   std::fstream fs;
   fs.open(argv[1], std::fstream::in);
-  compile(fs);
+  compile(fs, argv[1]);
   fs.close();
   return 0;
 }

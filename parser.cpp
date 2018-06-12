@@ -16,12 +16,18 @@ namespace parser{
   int ofs;
   std::string source; // lower
   std::string source_orig; // same as user described, for error message
+  std::string filename;
+  int32_t get_column()
+  {
+    return std::count(source.begin(), source.begin()+ofs, '\n') + 1;
+  }
+  void error(std::string msg)
+  {
+    std::cout << filename << ":" << get_column() << " error: " << msg << std::endl;
+  }
   bool is_blank(char c)
   {
-    if (c == ' ' || c == '\t') {
-      return true;
-    }
-    return false;
+    return (c == ' ' || c == '\t');
   }
   void skip_blanks()
   {
@@ -72,6 +78,16 @@ namespace parser{
       return false;
     }
   }
+  bool assert_end_of_line()
+  {
+    if (is_end_of_line()) {
+      return true;
+    } else {
+      error("unexpected token in end of line");
+      return false;
+    }
+  }
+
   std::unique_ptr<Constant> read_constant()
   {
     if (!isdigit(source[ofs])) {
@@ -93,13 +109,33 @@ namespace parser{
     read_one_blank();
     std::string name = read_name();
     if (name == "") {
-      // error
+      error("missing program name in program-stmt");
     }
-    if (!is_end_of_line()) {
-      // error
-    }
+    assert_end_of_line();
     std::unique_ptr<Program> program {new Program(name)};
     return std::move(program);
+  }
+  bool parse_end_program_stmt(const std::string name)
+  {
+    skip_blank_lines();
+    read_token("end");
+    if (is_end_of_line()) {
+      return true;
+    }
+    read_one_blank();
+    if (!read_token("program")) {
+      error("unexpected token in end-program-stmt");
+      return false;
+    }
+    if (is_end_of_line()) {
+      return true;
+    }
+    read_one_blank();
+    if (!read_token(name)) {
+      error("name is different from the corresponding program-stmt");
+      return false;
+    }
+    return assert_end_of_line();
   }
 
   std::unique_ptr<Specification> parse_type_declaration()
@@ -235,13 +271,15 @@ namespace parser{
     std::unique_ptr<Program> program = parse_program_stmt();
     parse_specification_part(program->specifications);
     parse_executable_part(program->executable_constructs);
+    parse_end_program_stmt(program->name);
     return std::move(program);
   }
-  std::unique_ptr<Program> parse(const std::string str)
+  std::unique_ptr<Program> parse(const std::string str, const std::string name)
   {
     ofs = 0;
     source_orig = str;
     source = str;
+    filename = name;
     std::transform(source.begin(), source.end(), source.begin(), tolower);
     return std::move(parse_main_program());
   }
