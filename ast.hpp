@@ -2,18 +2,6 @@
 #include <iostream>
 #include <string>
 #include "llvm/IR/IRBuilder.h"
-// #include <boost/spirit/include/support_utree.hpp>
-// //#include <boost/spirit/include/qi.hpp>
-// #include <boost/spirit/include/phoenix.hpp>
-// #include <boost/spirit/include/phoenix_core.hpp>
-// #include <boost/spirit/include/phoenix_operator.hpp>
-// #include <boost/spirit/include/phoenix_fusion.hpp>
-// #include <boost/spirit/include/phoenix_stl.hpp>
-// #include <boost/fusion/include/adapt_struct.hpp>
-// #include <boost/fusion/include/io.hpp>
-// #include <boost/variant/recursive_wrapper.hpp>
-// #include <boost/variant/static_visitor.hpp>
-// #include <boost/variant/apply_visitor.hpp>
 
 namespace ast {
   enum class operators {
@@ -46,6 +34,7 @@ namespace ast {
   public:
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
+  private:
     enum Type_kind type_kind;
   };
 
@@ -92,6 +81,7 @@ namespace ast {
   public:
     virtual void print(std::string indent) const = 0;
     virtual void codegen() const = 0;
+    virtual ~Statement() {};
   };
 
   class Assignment_statement : public Statement {
@@ -123,10 +113,10 @@ namespace ast {
     void add_statement(std::unique_ptr<Statement> stmt) {this->statements.push_back(std::move(stmt));};
     void add_internal_program(std::unique_ptr<Program_unit>);
     //std::map<std::string, llvm::Value *>
-    std::vector<std::unique_ptr<Variable>> variable_declarations; // vector以外にいいのがあるかも
   private:
     std::string name;
     std::vector<std::unique_ptr<Statement>> statements;
     std::vector<std::shared_ptr<Program_unit>> internal_programs;
+    std::vector<std::unique_ptr<Variable>> variable_declarations; // vector以外にいいのがあるかも
   };
 }
