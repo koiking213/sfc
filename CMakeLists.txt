@@ -4,7 +4,7 @@ set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-std=c++11 -g -O0")
 
 # 4.0以上じゃないとだめかも
-find_package(LLVM 7.0 REQUIRED CONFIG)
+find_package(LLVM 6.0 REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -22,11 +22,16 @@ add_executable(sfc main.cpp parser.cpp ast.cpp IR_generator.cpp semantic_analysi
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
-llvm_map_components_to_libnames(llvm_libs support irreader)
+#llvm_map_components_to_libnames(llvm_libs support irreader all)
+llvm_map_components_to_libnames(llvm_libs ${LLVM_TARGETS_TO_BUILD})
 
 # Link against LLVM libraries
 target_link_libraries(sfc ${llvm_libs})
 
+# library
+if(NOT without-runtime-lib)
+  add_subdirectory(runtime)
+endif()
 
 # test
 if(NOT without-test)

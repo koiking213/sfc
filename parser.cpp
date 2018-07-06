@@ -227,7 +227,8 @@ namespace parser{
       ofs = saved_offset; // roll back
       return nullptr;
     }
-    assignment_stmt->set_lhs(name);
+    std::unique_ptr<Variable> var { new Variable(name) };
+    assignment_stmt->set_lhs(std::move(var));
     assignment_stmt->set_rhs(parse_expression());
     return std::move(assignment_stmt);
   }

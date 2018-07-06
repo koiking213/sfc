@@ -87,6 +87,7 @@ namespace cst {
     void print(std::string indent);
     Variable(std::string name) {this->name = name;}
     std::unique_ptr<ast::Expression> ASTgen();
+    std::unique_ptr<ast::Variable_definition> ASTgen_definition();
   private:
     std::string name;
   };
@@ -104,12 +105,12 @@ namespace cst {
 
   class Assignment_statement : public Executable_construct {
   public:
-    void set_lhs(std::string variable) {this->lhs = static_cast<std::unique_ptr<Expression>>(new Variable(variable));}
+    void set_lhs(std::unique_ptr<Variable> lhs) {this->lhs = std::move(lhs);}
     void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
     void print(std::string indent);
     std::unique_ptr<ast::Statement> ASTgen();
   private:
-    std::unique_ptr<Expression> lhs;
+    std::unique_ptr<Variable> lhs;
     std::unique_ptr<Expression> rhs;
   };
 

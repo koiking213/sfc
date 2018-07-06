@@ -19,6 +19,11 @@ namespace cst {
   {
     return false;
   }
+  std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition()
+  {
+    std::unique_ptr<ast::Variable_definition> var { new ast::Variable_definition(this->name) };
+    return var;
+  }
   std::unique_ptr<ast::Expression> Variable::ASTgen()
   {
     std::unique_ptr<ast::Variable_reference> var { new ast::Variable_reference(this->name) };
@@ -66,7 +71,7 @@ namespace cst {
   std::unique_ptr<ast::Statement> Assignment_statement::ASTgen()
   {
     std::unique_ptr<ast::Assignment_statement> stmt { new ast::Assignment_statement() };
-    stmt->set_lhs(this->lhs->ASTgen());
+    stmt->set_lhs(this->lhs->ASTgen_definition());
     stmt->set_rhs(this->rhs->ASTgen());
     return static_unique_pointer_cast<ast::Statement>(std::move(stmt));
   }
@@ -106,6 +111,11 @@ namespace cst {
     }
     return static_unique_pointer_cast<ast::Statement>(std::move(ast_output_stmt));
   }
+
+  // std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition()
+  // {
+  //   return std::move(new ast::Variable_definition(this->name));
+  // }
 }
 
 
