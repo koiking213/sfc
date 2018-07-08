@@ -38,7 +38,7 @@ void compile(std::fstream &fs, std::string infile_name, std::string outfile_name
 void link(std::string outfile_name) {
   std::string command="clang++";
   command = command + " " + outfile_name;
-  command = command + " " + "simple_print.o";
+  command = command + " " + "libfortio.a";
   system(command.c_str());
 }
 

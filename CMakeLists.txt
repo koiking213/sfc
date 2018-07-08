@@ -19,6 +19,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 # Now build our tools
 add_executable(sfc main.cpp parser.cpp ast.cpp IR_generator.cpp semantic_analysis.cpp cst.cpp)
+add_library(fortio STATIC runtime/simple_print.c)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
@@ -28,10 +29,10 @@ llvm_map_components_to_libnames(llvm_libs ${LLVM_TARGETS_TO_BUILD})
 # Link against LLVM libraries
 target_link_libraries(sfc ${llvm_libs})
 
-# library
-if(NOT without-runtime-lib)
-  add_subdirectory(runtime)
-endif()
+# # library
+# if(NOT without-runtime-lib)
+#   add_subdirectory(runtime)
+# endif()
 
 # test
 if(NOT without-test)

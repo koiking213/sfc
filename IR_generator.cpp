@@ -46,7 +46,6 @@ namespace IR_generator {
     }
   }
   void codeout(std::string outfile_name) {
-    std::cout << "outfile is " << outfile_name << std::endl;
     // Initialize the target registry etc.
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -101,12 +100,10 @@ namespace IR_generator {
     module = new llvm::Module("top", context);
     add_library_prototype_to_module();
     program->codegen();
+#if DEBUG
     module->print(llvm::errs(), nullptr);
+#endif
   }
-  // llvm::Value *generate_load(std::string name)
-  // {
-  //   return builder.CreateLoad(variable_table[name], "var_tmp");
-  // }
 }
 
 namespace ast {
