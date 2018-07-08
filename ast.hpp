@@ -57,6 +57,15 @@ namespace ast {
   private:
     std::string name;
   };
+
+  class Variable_definition {
+  public:
+    void print() const;
+    llvm::Value *codegen() const;
+    Variable_definition(std::string name) {this->name = name;}
+  private:
+    std::string name;
+  };
   
   class Type {
   public:
@@ -88,10 +97,10 @@ namespace ast {
   public:
     void print(std::string indent) const;
     void codegen() const;
-    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
+    void set_lhs(std::unique_ptr<Variable_definition> lhs) {this->lhs = std::move(lhs);}
     void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
   private:
-    std::unique_ptr<Expression> lhs;
+    std::unique_ptr<Variable_definition> lhs;
     std::unique_ptr<Expression> rhs;
   };
 

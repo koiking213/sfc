@@ -47,6 +47,10 @@ namespace ast {
   {
     std::cout << name;
   }
+  void Variable_definition::print() const
+  {
+    std::cout << name;
+  }
   void Assignment_statement::print(std::string indent) const
   {
     std::cout << indent << "Assignment statement:";

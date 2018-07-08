@@ -12,14 +12,15 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 add_executable(sfc main.cpp parser.cpp ast.cpp IR_generator.cpp semantic_analysis.cpp cst.cpp)
+add_library(fortio STATIC runtime/simple_print.c)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
-llvm_map_components_to_libnames(llvm_libs support irreader)
+#llvm_map_components_to_libnames(llvm_libs support irreader all)
+llvm_map_components_to_libnames(llvm_libs ${LLVM_TARGETS_TO_BUILD})
 
 # Link against LLVM libraries
 target_link_libraries(sfc ${llvm_libs})
-
 
 # test
 if(NOT without-test)
