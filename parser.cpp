@@ -141,20 +141,17 @@ namespace parser{
   std::unique_ptr<Specification> parse_type_declaration()
   {
     skip_blank_lines();
-    std::unique_ptr<Type_specification> spec {new Type_specification};
+    std::unique_ptr<Type_specification> spec;
     if (read_token("integer")) {
-      spec->type_kind = Type_kind::Intrinsic;
-      spec->type_name = "integer";
+      spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "integer");
     } else {
       return nullptr;
     }
     read_one_blank(); // TOOD: semicolon should be also accepted
-    std::string name = read_name();
-    spec->variables.push_back(name);
-    while (read_token(",")) {
-      name = read_name();
-      spec->variables.push_back(name);
-    }
+    do {
+      std::string name = read_name();
+      spec->add_variable(name);
+    } while (read_token(","));
     return std::move(spec);
   }
   
@@ -163,13 +160,6 @@ namespace parser{
     return parse_type_declaration();
   }
   
-  void parse_specification_part(std::vector<std::unique_ptr<Specification>> &specifications)
-  {
-    std::unique_ptr<Specification> spec;
-    while ((spec = parse_declaration_construct())) {
-      specifications.push_back(std::move(spec));
-    }
-  }
   std::unique_ptr<Expression> parse_mult_operand()
   {
     std::string name = read_name();
@@ -260,19 +250,18 @@ namespace parser{
   {
     return parse_action_stmt();
   }
-  void parse_executable_part(std::vector<std::unique_ptr<Executable_construct>> &executable_constructs)
-  {
-    std::unique_ptr<Executable_construct> exec;
-    while ((exec = parse_executable_constructs())) {
-      executable_constructs.push_back(std::move(exec));
-    }
-  }
   std::unique_ptr<Program> parse_main_program()
   {
     std::unique_ptr<Program> program = parse_program_stmt();
-    parse_specification_part(program->specifications);
-    parse_executable_part(program->executable_constructs);
-    parse_end_program_stmt(program->name);
+    std::unique_ptr<Specification> spec;
+    while ((spec = parse_declaration_construct())) {
+      program->add_specification(std::move(spec));
+    }
+    std::unique_ptr<Executable_construct> exec;
+    while ((exec = parse_executable_constructs())) {
+      program->add_executable_construct(std::move(exec));
+    }
+    parse_end_program_stmt(program->get_name());
     return std::move(program);
   }
   std::unique_ptr<Program> parse(const std::string str, const std::string name)
