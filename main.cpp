@@ -70,13 +70,13 @@ int main(int argc, char* argv[]) {
       std::fstream fs;
       fs.open(filename, std::fstream::in);
       std::string outfile_name = filename.substr(0, filename.find_last_of(".")) + ".o";
-      outfile_name = outfile_name.substr(outfile_name.find_first_of("/")+1, outfile_name.length());
+      outfile_name = outfile_name.substr(outfile_name.find_last_of("/")+1, outfile_name.length());
       compile(fs, filename, outfile_name);
       file_list.push_back(outfile_name);
       fs.close();
-    } else if (filename.find(".o", filename.size() - 4) != std::string::npos) {
+    } else if (filename.find(".o", filename.size() - 2) != std::string::npos) {
       file_list.push_back(filename);
-    } else if (filename.find(".f", filename.size() - 4) != std::string::npos) {
+    } else if (filename.find(".f", filename.size() - 2) != std::string::npos) {
       std::cout << "error: fixed form is not supported yet!" << std::endl;
       return 0;
     }
