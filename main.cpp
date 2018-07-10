@@ -76,7 +76,14 @@ int main(int argc, char* argv[]) {
       fs.close();
     } else if (filename.find(".o", filename.size() - 4) != std::string::npos) {
       file_list.push_back(filename);
+    } else if (filename.find(".f", filename.size() - 4) != std::string::npos) {
+      std::cout << "error: fixed form is not supported yet!" << std::endl;
+      return 0;
     }
+  }
+  if (file_list.size() == 0) {
+    std::cout << "error: no input file" << std::endl;
+    return 0;
   }
   if (link_flag) {
     link(file_list, option_list);
