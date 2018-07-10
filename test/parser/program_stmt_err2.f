@@ -1,2 +1,0 @@
-      programname%
-      end

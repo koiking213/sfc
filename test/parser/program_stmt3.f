@@ -1,3 +1,0 @@
-      programhoge
-      end
-      
