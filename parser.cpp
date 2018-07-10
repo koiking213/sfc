@@ -65,8 +65,14 @@ namespace parser{
   }
   bool is_end_of_line()
   {
+    auto save_ofs = ofs;
     skip_blanks();
-    return source[ofs] == '\n';
+    if (source[ofs] == '\n') {
+      return true;
+    } else {
+      ofs = save_ofs;
+      return false;
+    }
   }
   void skip_blank_lines()
   {
@@ -90,7 +96,6 @@ namespace parser{
       return true;
     } else {
       error("unexpected token in end of line");
-      skip_this_line();
       return false;
     }
   }
@@ -116,19 +121,18 @@ namespace parser{
     {
       read_token("program");
       if (!read_one_blank()) {
-	error("whitespace is expected after PROGRAM");
-	skip_this_line();
+	error("missing whitespace after PROGRAM");
 	goto exit;
       }
       name = read_name();
       if (name == "") {
 	error("missing program name in program-stmt");
-	skip_this_line();
 	goto exit;
       }
     }
     assert_end_of_line();
   exit:
+    skip_this_line();
     std::unique_ptr<Program> program {new Program(name)};
     return std::move(program);
   }
@@ -139,20 +143,33 @@ namespace parser{
     if (is_end_of_line()) {
       return true;
     }
-    read_one_blank();
+    if (!read_one_blank()) {
+      error("missing whitespace after END");
+      goto errexit;
+    }
     if (!read_token("program")) {
       error("unexpected token in end-program-stmt");
-      return false;
+      goto errexit;
     }
     if (is_end_of_line()) {
       return true;
     }
-    read_one_blank();
+    if (!read_one_blank()) {
+      error("missing whitespace after PROGRAM");
+      goto errexit;
+    }
     if (!read_token(name)) {
       error("name is different from the corresponding program-stmt");
-      return false;
+      goto errexit;
     }
-    return assert_end_of_line();
+    if (!assert_end_of_line()) {
+      goto errexit;
+    }
+    return true;
+    
+  errexit:
+    skip_this_line();
+    return false;
   }
 
   std::unique_ptr<Specification> parse_type_declaration()
