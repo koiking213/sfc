@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <unistd.h>
 #include "parser.hpp"
 #include "IR_generator.hpp"
 #include "ast.hpp"
@@ -35,22 +36,50 @@ void compile(std::fstream &fs, std::string infile_name, std::string outfile_name
   IR_generator::codeout(outfile_name);
 }
 
-void link(std::string outfile_name) {
+void link(std::vector<std::string> file_list, std::vector<std::string> option_list) {
   std::string command="clang++";
-  command = command + " " + outfile_name;
+  for (std::string file : file_list) {
+    command = command + " " + file;
+  }
   command = command + " " + "libfortio.a";
+  for (std::string opt : option_list) {
+    command = command + " " + opt;
+  }
   system(command.c_str());
 }
 
 int main(int argc, char* argv[]) {
-  //std::cout << argv[1] << std::endl;
-  std::fstream fs;
-  fs.open(argv[1], std::fstream::in);
-  std::string infile_name = argv[1];
-  std::string outfile_name = infile_name.substr(0, infile_name.find_last_of(".")) + ".o";
-  outfile_name = outfile_name.substr(outfile_name.find_first_of("/")+1, outfile_name.length());
-  compile(fs, infile_name, outfile_name);
-  link(outfile_name);
-  fs.close();
+  std::vector<std::string> file_list;
+  std::vector<std::string> option_list;
+  bool link_flag = true;
+  std::string output_name = "";
+  int opt;
+  while ((opt = getopt(argc, argv, "co:")) != -1) {
+    switch (opt) {
+    case 'c':
+      link_flag = false;
+      break;
+    case 'o':
+      option_list.push_back("-o " + std::string(optarg));
+      break;
+    }
+  }
+  for (int i=optind; i<argc; i++) {
+    std::string filename = argv[i];
+    if (filename.find(".f90", filename.size() - 4) != std::string::npos) {
+      std::fstream fs;
+      fs.open(filename, std::fstream::in);
+      std::string outfile_name = filename.substr(0, filename.find_last_of(".")) + ".o";
+      outfile_name = outfile_name.substr(outfile_name.find_first_of("/")+1, outfile_name.length());
+      compile(fs, filename, outfile_name);
+      file_list.push_back(outfile_name);
+      fs.close();
+    } else if (filename.find(".o", filename.size() - 4) != std::string::npos) {
+      file_list.push_back(filename);
+    }
+  }
+  if (link_flag) {
+    link(file_list, option_list);
+  }
   return 0;
 }
