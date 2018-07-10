@@ -29,6 +29,12 @@ namespace parser{
   {
     return (c == ' ' || c == '\t');
   }
+  void skip_this_line()
+  {
+    while (source[ofs] != '\n') {
+      ofs++;
+    }
+  }
   void skip_blanks()
   {
     while (is_blank(source[ofs])) {
@@ -84,6 +90,7 @@ namespace parser{
       return true;
     } else {
       error("unexpected token in end of line");
+      skip_this_line();
       return false;
     }
   }
@@ -105,13 +112,23 @@ namespace parser{
   std::unique_ptr<Program> parse_program_stmt()
   {
     skip_blank_lines();
-    read_token("program");
-    read_one_blank();
-    std::string name = read_name();
-    if (name == "") {
-      error("missing program name in program-stmt");
+    std::string name = "";
+    {
+      read_token("program");
+      if (!read_one_blank()) {
+	error("whitespace is expected after PROGRAM");
+	skip_this_line();
+	goto exit;
+      }
+      name = read_name();
+      if (name == "") {
+	error("missing program name in program-stmt");
+	skip_this_line();
+	goto exit;
+      }
     }
     assert_end_of_line();
+  exit:
     std::unique_ptr<Program> program {new Program(name)};
     return std::move(program);
   }
