@@ -3,6 +3,8 @@
 #include <fstream>
 #include <vector>
 #include <unistd.h>
+#include <cstdio>
+#include <cstdlib>
 #include "parser.hpp"
 #include "IR_generator.hpp"
 #include "ast.hpp"
@@ -49,7 +51,8 @@ void link(std::vector<std::string> file_list, std::vector<std::string> option_li
 }
 
 int main(int argc, char* argv[]) {
-  std::vector<std::string> file_list;
+  std::vector<std::string> outfile_list;
+  std::vector<std::string> objfile_list;
   std::vector<std::string> option_list;
   bool link_flag = true;
   std::string output_name = "";
@@ -64,6 +67,13 @@ int main(int argc, char* argv[]) {
       break;
     }
   }
+  char* tmpdir_env = std::getenv("TMPDIR");
+  std::string tmpdir;
+  if (tmpdir_env) {
+    tmpdir = tmpdir_env;
+  } else {
+    tmpdir = "/tmp";
+  }
   for (int i=optind; i<argc; i++) {
     std::string filename = argv[i];
     if (filename.find(".f90", filename.size() - 4) != std::string::npos) {
@@ -71,22 +81,31 @@ int main(int argc, char* argv[]) {
       fs.open(filename, std::fstream::in);
       std::string outfile_name = filename.substr(0, filename.find_last_of(".")) + ".o";
       outfile_name = outfile_name.substr(outfile_name.find_last_of("/")+1, outfile_name.length());
+      if (link_flag) {
+	outfile_name = tmpdir + "/" + outfile_name;
+      }
       compile(fs, filename, outfile_name);
-      file_list.push_back(outfile_name);
+      outfile_list.push_back(outfile_name);
       fs.close();
     } else if (filename.find(".o", filename.size() - 2) != std::string::npos) {
-      file_list.push_back(filename);
+      objfile_list.push_back(filename);
     } else if (filename.find(".f", filename.size() - 2) != std::string::npos) {
       std::cout << "error: fixed form is not supported yet!" << std::endl;
       return 0;
     }
   }
-  if (file_list.size() == 0) {
+  if (outfile_list.size() == 0 && objfile_list.size() == 0) {
     std::cout << "error: no input file" << std::endl;
     return 0;
   }
   if (link_flag) {
+    std::vector<std::string> file_list;
+    file_list.insert(file_list.end(), objfile_list.begin(), objfile_list.end());
+    file_list.insert(file_list.end(), outfile_list.begin(), outfile_list.end());
     link(file_list, option_list);
+    for (std::string file : outfile_list) {
+      std::remove(file.c_str());
+    }
   }
   return 0;
 }

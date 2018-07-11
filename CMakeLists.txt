@@ -11,7 +11,7 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_executable(sfc main.cpp parser.cpp ast.cpp IR_generator.cpp semantic_analysis.cpp cst.cpp)
+add_executable(sfc src/main.cpp src/parser.cpp src/ast.cpp src/IR_generator.cpp src/semantic_analysis.cpp src/cst.cpp)
 add_library(fortio STATIC runtime/simple_print.c)
 
 # Find the libraries that correspond to the LLVM components
