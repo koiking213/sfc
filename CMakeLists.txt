@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(small_fortran_compiler)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-std=c++14 -g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG_MODE")
 
 find_package(LLVM 6.0 REQUIRED CONFIG)
 
