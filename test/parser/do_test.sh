@@ -2,10 +2,10 @@
 
 OK=0
 NG=0
-for file in *.f *.f90
+for file in test/parser/*.f90
 do
     echo -n "$file: "
-    ./parser-test $file 
+    ./sfc $file 
     if (($? == 0 )); then
 	# compilation is succeeded
 	if [[ $file =~ err[0-9]*\.(f|f90)$ ]]; then
