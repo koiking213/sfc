@@ -39,17 +39,17 @@ namespace IR_generator {
     llvm::FunctionType *func_type =
       llvm::FunctionType::get(llvm::Type::getInt32Ty(context), int_types, true);
 
-    // TODO: simple_print -> write
+    // TODO: write -> write
     llvm::Function *func =
-      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_simple_print_int", module);
-    procedure_table["_simple_print_int"] = func;
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_int", module);
+    procedure_table["_write_int"] = func;
     for (auto &arg : func->args()) {
       arg.setName("value");
     }
 
     func =
-      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_simple_print_float", module);
-    procedure_table["_simple_print_float"] = func;
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_float", module);
+    procedure_table["_write_float"] = func;
     for (auto &arg : func->args()) {
       arg.setName("value");
     }
@@ -156,9 +156,9 @@ namespace ast {
       args.push_back(elm->codegen());
       llvm::Function *callee;
       if (elm->get_type() == Type_kind::i32) {
-	callee = module->getFunction("_simple_print_int");
+	callee = module->getFunction("_write_int");
       } else if (elm->get_type() == Type_kind::fp32) {
-	callee = module->getFunction("_simple_print_float");
+	callee = module->getFunction("_write_float");
       } else {
 	assert(0);
       }

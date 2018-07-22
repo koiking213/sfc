@@ -13,7 +13,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 add_executable(sfc src/main.cpp src/parser.cpp src/ast.cpp src/IR_generator.cpp src/semantic_analysis.cpp src/cst.cpp)
-add_library(fortio STATIC runtime/simple_print.c)
+add_library(fortio STATIC runtime/write.c)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
