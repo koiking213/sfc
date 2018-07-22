@@ -22,12 +22,13 @@
 // private:
 // };
 
-void compile(std::fstream &fs, std::string infile_name, std::string outfile_name) {
+bool compile(std::fstream &fs, std::string infile_name, std::string outfile_name) {
   std::string str, line;
   while (getline(fs, line)) {
     str += line + '\n';
   }
   std::unique_ptr<cst::Program> cst_program = parser::parse(str, infile_name);
+  if (!cst_program) return false;
   // std::cout << "=== CST ===" << std::endl;
   // cst_program->print();
   std::shared_ptr<ast::Program_unit> ast_program = cst_program->ASTgen();
@@ -36,6 +37,7 @@ void compile(std::fstream &fs, std::string infile_name, std::string outfile_name
   IR_generator::generate_IR(ast_program);
   // generate .o
   IR_generator::codeout(outfile_name);
+  return true;
 }
 
 void link(std::vector<std::string> file_list, std::vector<std::string> option_list) {
@@ -56,6 +58,7 @@ int main(int argc, char* argv[]) {
   std::vector<std::string> option_list;
   bool link_flag = true;
   std::string output_name = "";
+  bool success = true;
   int opt;
   while ((opt = getopt(argc, argv, "co:")) != -1) {
     switch (opt) {
@@ -84,7 +87,7 @@ int main(int argc, char* argv[]) {
       if (link_flag) {
 	outfile_name = tmpdir + "/" + outfile_name;
       }
-      compile(fs, filename, outfile_name);
+      success &= compile(fs, filename, outfile_name);
       outfile_list.push_back(outfile_name);
       fs.close();
     } else if (filename.find(".o", filename.size() - 2) != std::string::npos) {
@@ -98,7 +101,7 @@ int main(int argc, char* argv[]) {
     std::cout << "error: no input file" << std::endl;
     return 0;
   }
-  if (link_flag) {
+  if (link_flag && success) {
     std::vector<std::string> file_list;
     file_list.insert(file_list.end(), objfile_list.begin(), objfile_list.end());
     file_list.insert(file_list.end(), outfile_list.begin(), outfile_list.end());
@@ -107,5 +110,9 @@ int main(int argc, char* argv[]) {
       std::remove(file.c_str());
     }
   }
-  return 0;
+  if (success) {
+    return 0;
+  } else {
+    return 1;
+  }
 }

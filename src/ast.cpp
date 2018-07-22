@@ -43,9 +43,13 @@ namespace ast {
   {
     std::cout << "(int32)" << this->value;
   }
+  void FP32_constant::print() const
+  {
+    std::cout << "(real32)" << this->value;
+  }
   void Variable_reference::print() const
   {
-    std::cout << name;
+    std::cout << this->var->get_name();
   }
   void Variable_definition::print() const
   {
@@ -73,8 +77,8 @@ namespace ast {
     std::cout << indent << "ProgramUnit:" << this->name << std::endl;
     // TODO: リストを出力する処理は共通化したい
     std::cout << indent << "  " << "variables:" << std::endl;
-    for (auto &var : this->variable_declarations) {
-      var->print(indent + "  ");
+    for (auto var : *this->variables) {
+      var.second->print(indent + "  ");
     }
     std::cout << std::endl;
     
@@ -94,11 +98,19 @@ namespace ast {
   {
     std::cout << indent << "name: " << this->name;
     std::cout << ", type: ";
-    this->type.print(); // TODO: <<演算子の実装
+    this->type->print(); // TODO: <<演算子の実装
     std::cout << ", size: " << this->element_num;
   }
   void Type::print() const
   {
     std::cout << type_to_string(this->type_kind);
+  }
+
+  enum Type_kind Expression::get_type() const
+  {
+    enum Type_kind l = lhs->get_type();
+    enum Type_kind r = rhs->get_type();
+    if (l==r) return l;
+    assert(0);
   }
 }

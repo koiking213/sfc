@@ -17,12 +17,14 @@ namespace parser{
   std::string source; // lower
   std::string source_orig; // same as user described, for error message
   std::string filename;
+  bool error_occured;
   int32_t get_column()
   {
     return std::count(source.begin(), source.begin()+ofs, '\n') + 1;
   }
   void error(std::string msg)
   {
+    error_occured = true;
     std::cout << filename << ":" << get_column() << " error: " << msg << std::endl;
   }
   bool is_blank(char c)
@@ -61,6 +63,7 @@ namespace parser{
       ofs++;
       return true;
     }
+    ofs--;
     return false;
   }
   bool is_end_of_line()
@@ -82,11 +85,13 @@ namespace parser{
   }
   bool read_token(const std::string str)
   {
+    auto save_ofs = ofs;
     skip_blanks();
     if (std::equal(str.begin(), str.end(), source.begin()+ofs)) {
       ofs += str.size();
       return true;
     } else {
+      ofs = save_ofs;
       return false;
     }
   }
@@ -100,19 +105,45 @@ namespace parser{
     }
   }
 
-  std::unique_ptr<Constant> read_constant()
+  std::unique_ptr<Constant> read_int_constant()
   {
+    auto save_ofs = ofs;
     if (!isdigit(source[ofs])) {
       return nullptr;
     }
     int begin = ofs;
-    // TOOD: other than integer
     while (isdigit(source[ofs])) {
       ofs++;
     }
     std::string value = source.substr(begin, ofs-begin);
     std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "integer", value) };
     return std::move(cnt);
+  }
+  std::unique_ptr<Constant> read_real_constant()
+  {
+    auto save_ofs = ofs;
+    int begin = ofs;
+    while (isdigit(source[ofs])) {
+      ofs++;
+    }
+    if (source[ofs++] == '.' && isdigit(source[ofs])) {
+      while (isdigit(source[ofs])) {
+	ofs++;
+      }
+      std::string value = source.substr(begin, ofs-begin);
+      std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "real", value) };
+      return std::move(cnt);
+    } else {
+      ofs = save_ofs;
+      return nullptr;
+    }
+  }
+  std::unique_ptr<Constant> read_constant()
+  {
+    std::unique_ptr<Constant> cnt; 
+    if ((cnt = read_real_constant())) return cnt;
+    if ((cnt = read_int_constant())) return cnt;
+    return nullptr;
   }
   std::unique_ptr<Program> parse_program_stmt()
   {
@@ -178,6 +209,8 @@ namespace parser{
     std::unique_ptr<Type_specification> spec;
     if (read_token("integer")) {
       spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "integer");
+    } else if (read_token("real")) {
+      spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "real");
     } else {
       return nullptr;
     }
@@ -303,9 +336,15 @@ namespace parser{
     ofs = 0;
     source_orig = str;
     source = str;
+    error_occured = false;
     filename = name;
     std::transform(source.begin(), source.end(), source.begin(), tolower);
-    return std::move(parse_main_program());
+    std::unique_ptr<Program> program = parse_main_program();
+    if (error_occured) {
+      return nullptr;
+    } else {
+      return std::move(program);
+    }
   }
 }
 

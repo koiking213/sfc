@@ -8,19 +8,6 @@ namespace ast {
     add, sub, mul, div, leaf
   };
 
-  class Expression {
-  public:
-    void set_operator(enum operators op) {this->exp_operator = op;}
-    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
-    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
-    virtual void print() const;
-    virtual llvm::Value *codegen() const;
-  private:
-    enum operators exp_operator;
-    std::unique_ptr<Expression> lhs;
-    std::unique_ptr<Expression> rhs;
-  };
-  
   enum class Type_kind : int {
     logical,
     i32,
@@ -29,11 +16,49 @@ namespace ast {
     fp64,
     pointer
   };
+  
+  class Type {
+  public:
+    Type(Type_kind type_kind) : type_kind(type_kind) {}
+    void print() const;
+    Type_kind get_type_kind() const {return type_kind;} ;
+  private:
+    enum Type_kind type_kind;
+  };
 
+  class Variable {
+  public:
+    Variable(std::string name) : name(name) {}
+    void print(std::string indent) const;
+    void codegen() const;
+    std::string get_name() const {return name;}
+    Type_kind get_type_kind() const {return type->get_type_kind();}
+    void set_type(std::shared_ptr<Type> type){this->type = type;}
+  private:
+    std::string name;
+    std::shared_ptr<Type> type;
+    int64_t element_num=0;
+  };
+  
+  class Expression {
+  public:
+    void set_operator(enum operators op) {this->exp_operator = op;}
+    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
+    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
+    virtual void print() const;
+    virtual llvm::Value *codegen() const;
+    virtual enum Type_kind get_type() const;
+  private:
+    enum operators exp_operator;
+    std::unique_ptr<Expression> lhs;
+    std::unique_ptr<Expression> rhs;
+  };
+  
   class Constant : public Expression {
   public:
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
+    virtual Type_kind get_type() const = 0;
   private:
     enum Type_kind type_kind;
   };
@@ -44,18 +69,30 @@ namespace ast {
     void print() const;
     llvm::Value *codegen() const;
     int32_t get_value() {return value;}
+    Type_kind get_type() const {return Type_kind::i32;};
   private:
     int32_t value;
   };
 
-  class Variable_reference : public Expression {
+  class FP32_constant : public Constant {
   public:
-    // TODO: この時点で変数のmapを持っておいてそれを指すほうが良さそう?
+    FP32_constant(float val) {this->value = val;}
     void print() const;
     llvm::Value *codegen() const;
-    Variable_reference(std::string name) {this->name = name;}
+    float get_value() {return value;}
+    Type_kind get_type() const {return Type_kind::fp32;};
   private:
-    std::string name;
+    float value;
+  };
+
+  class Variable_reference : public Expression {
+  public:
+    void print() const;
+    llvm::Value *codegen() const;
+    Variable_reference(std::shared_ptr<Variable> var) {this->var = var;}
+    Type_kind get_type() const {return var->get_type_kind();}
+  private:
+    std::shared_ptr<Variable> var;
   };
 
   class Variable_definition {
@@ -64,28 +101,10 @@ namespace ast {
     llvm::Value *codegen() const;
     Variable_definition(std::string name) {this->name = name;}
   private:
+    enum Type_kind type_kind;
     std::string name;
   };
   
-  class Type {
-  public:
-    Type(Type_kind type_kind) : type_kind(type_kind) {}
-    void print() const;
-  private:
-    enum Type_kind type_kind;
-  };
-
-  class Variable {
-  public:
-    Variable(std::string name, Type_kind type_kind) : name(name), type(type_kind) {}
-    void print(std::string indent) const;
-    void codegen() const;
-  private:
-    std::string name;
-    Type type;
-    int64_t element_num=0;
-  };
-
   class Statement {
   public:
     virtual void print(std::string indent) const = 0;
@@ -118,14 +137,15 @@ namespace ast {
     void print(std::string indent) const;
     void codegen() const;
     Program_unit(std::string name) {this->name = name; }
-    void add_variable_decl(std::unique_ptr<Variable> var) {this->variable_declarations.push_back(std::move(var));};
     void add_statement(std::unique_ptr<Statement> stmt) {this->statements.push_back(std::move(stmt));};
     void add_internal_program(std::unique_ptr<Program_unit>);
-    //std::map<std::string, llvm::Value *>
+    void set_variables(std::unique_ptr<std::map<std::string, std::shared_ptr<Variable>>> table) {this->variables = std::move(table);}
+    void set_types(std::unique_ptr<std::map<std::string, std::shared_ptr<Type>>> table) {this->types = std::move(table);}
   private:
     std::string name;
     std::vector<std::unique_ptr<Statement>> statements;
     std::vector<std::shared_ptr<Program_unit>> internal_programs;
-    std::vector<std::unique_ptr<Variable>> variable_declarations; // vector以外にいいのがあるかも
+    std::unique_ptr<std::map<std::string, std::shared_ptr<Variable>>> variables;
+    std::unique_ptr<std::map<std::string, std::shared_ptr<Type>>> types;
   };
 }

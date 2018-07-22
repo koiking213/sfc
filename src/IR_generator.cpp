@@ -38,9 +38,18 @@ namespace IR_generator {
     std::vector<llvm::Type*> int_types(1, llvm::Type::getInt32Ty(context));
     llvm::FunctionType *func_type =
       llvm::FunctionType::get(llvm::Type::getInt32Ty(context), int_types, true);
+
+    // TODO: simple_print -> write
     llvm::Function *func =
-      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_simple_print", module);
-    procedure_table["_simple_print"] = func;
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_simple_print_int", module);
+    procedure_table["_simple_print_int"] = func;
+    for (auto &arg : func->args()) {
+      arg.setName("value");
+    }
+
+    func =
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_simple_print_float", module);
+    procedure_table["_simple_print_float"] = func;
     for (auto &arg : func->args()) {
       arg.setName("value");
     }
@@ -100,7 +109,7 @@ namespace IR_generator {
     module = new llvm::Module("top", context);
     add_library_prototype_to_module();
     program->codegen();
-#if DEBUG
+#if DEBUG_MODE
     module->print(llvm::errs(), nullptr);
 #endif
   }
@@ -110,8 +119,11 @@ namespace ast {
   llvm::Value *Int32_constant::codegen() const {
     return llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), this->value);
   }
+  llvm::Value *FP32_constant::codegen() const {
+    return llvm::ConstantFP::get(llvm::Type::getFloatTy(context), this->value);
+  }
   llvm::Value *Variable_reference::codegen() const {
-    return builder.CreateLoad(variable_table[this->name], "var_tmp");
+    return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
   }
   
   llvm::Value *Expression::codegen() const {
@@ -139,13 +151,19 @@ namespace ast {
 
   void Output_statement::codegen() const
   {
-    llvm::Function *callee = module->getFunction("_simple_print");
-    std::vector<llvm::Value*> args;
     for (auto &elm : this->elements) {
+      std::vector<llvm::Value*> args;
       args.push_back(elm->codegen());
-      //args.push_back(builder.CreateLoad(variable_table["hoge"], "var_tmp"));
+      llvm::Function *callee;
+      if (elm->get_type() == Type_kind::i32) {
+	callee = module->getFunction("_simple_print_int");
+      } else if (elm->get_type() == Type_kind::fp32) {
+	callee = module->getFunction("_simple_print_float");
+      } else {
+	assert(0);
+      }
+      builder.CreateCall(callee, args, "call_tmp");
     }
-    builder.CreateCall(callee, args, "call_tmp");
   }
 
   // only main program now
@@ -163,8 +181,8 @@ namespace ast {
     builder.SetInsertPoint(entry);
 
     // variable declarations
-    for (auto &var_decl : this->variable_declarations) {
-      var_decl->codegen();
+    for (auto var_decl : *this->variables) {
+      var_decl.second->codegen();
     }
     
     // executable statements
@@ -178,7 +196,12 @@ namespace ast {
   void Variable::codegen() const
   {
     // is just "context" ok for llvm::Type::getInt32Ty(context)?
-    auto value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), 0, this->name);
+    llvm::Value *value;
+    if (this->get_type_kind() == Type_kind::i32) {
+      value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), 0, this->name);
+    } else if (this->get_type_kind() == Type_kind::fp32) {
+      value = builder.CreateAlloca(llvm::Type::getFloatTy(context), 0, this->name);
+    }
     variable_table[this->name] = value;
   }
 

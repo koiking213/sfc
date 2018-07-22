@@ -1,6 +1,9 @@
 #include "parser.hpp"
 #include "ast.hpp"
 
+static std::unique_ptr<std::map<std::string, std::shared_ptr<ast::Variable>>> current_variable_table;
+static std::unique_ptr<std::map<std::string, std::shared_ptr<ast::Type>>> current_type_table;
+
 namespace cst {
   template<typename TO, typename FROM>
   std::unique_ptr<TO> static_unique_pointer_cast (std::unique_ptr<FROM>&& old){
@@ -26,14 +29,22 @@ namespace cst {
   }
   std::unique_ptr<ast::Expression> Variable::ASTgen()
   {
-    std::unique_ptr<ast::Variable_reference> var { new ast::Variable_reference(this->name) };
-    return static_unique_pointer_cast<ast::Expression>(std::move(var));
+    std::shared_ptr<ast::Variable> var = (*current_variable_table)[this->name];
+    if (!var) {
+      var = std::make_shared<ast::Variable>(this->name);
+      (*current_variable_table)[this->name] = var;
+    }
+    std::unique_ptr<ast::Variable_reference> var_ref { new ast::Variable_reference(var) };
+    return static_unique_pointer_cast<ast::Expression>(std::move(var_ref));
   }
   std::unique_ptr<ast::Expression> Constant::ASTgen()
   {
     if (this->type_kind == Type_kind::Intrinsic) {
       if (this->type_name == "integer") {
 	std::unique_ptr<ast::Int32_constant> cnt { new ast::Int32_constant(std::stoi(this->value)) };
+	return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
+      } else if (this->type_name == "real") {
+	std::unique_ptr<ast::FP32_constant> cnt { new ast::FP32_constant(std::strtod(this->value.c_str(), nullptr)) };
 	return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
       } else {
 	assert(false);
@@ -79,27 +90,46 @@ namespace cst {
   std::shared_ptr<ast::Program_unit> Program::ASTgen()
   {
     std::shared_ptr<ast::Program_unit> program_unit { new ast::Program_unit(this->name) };
+    current_variable_table = std::make_unique<std::map<std::string, std::shared_ptr<ast::Variable>>>();
+    current_type_table = std::make_unique<std::map<std::string, std::shared_ptr<ast::Type>>>();
     for (auto &spec : this->specifications) {
       spec->ASTgen(program_unit);
     }
     for (auto &exec : this->executable_constructs) {
       program_unit->add_statement(exec->ASTgen());
     }
+    program_unit->set_variables(std::move(current_variable_table));
+    program_unit->set_types(std::move(current_type_table));
     return program_unit;
   }
 
+  std::shared_ptr<ast::Type> get_or_create_type(cst::Type_kind type_kind, std::string type_name)
+  {
+    if ((*current_type_table)[type_name]) {
+      return (*current_type_table)[type_name];
+    }
+    
+    assert(type_kind == cst::Type_kind::Intrinsic);
+    std::shared_ptr<ast::Type> result;
+    if (type_name == "integer") {
+      result = std::make_shared<ast::Type>(ast::Type_kind::i32);
+    } else if (type_name == "real") {
+      result = std::make_shared<ast::Type>(ast::Type_kind::fp32);
+    }
+    (*current_type_table)[type_name] = result;
+    return result;
+  }
+  
   void Type_specification::ASTgen(std::shared_ptr<ast::Program_unit> program)
   {
-    assert(this->type_kind == cst::Type_kind::Intrinsic);
-    ast::Type_kind ast_type_kind;
-    if (this->type_name == "integer") {
-      ast_type_kind = ast::Type_kind::i32;
-    } else if (this->type_name == "real") {
-      ast_type_kind = ast::Type_kind::fp32;
-    }
+    std::shared_ptr<ast::Type> type = get_or_create_type(this->type_kind, this->type_name);
     for (std::string name : this->variables) {
-      std::unique_ptr<ast::Variable> var { new ast::Variable(name, ast_type_kind) };
-      program->add_variable_decl(std::move(var));
+      std::shared_ptr<ast::Variable> var = (*current_variable_table)[name];
+      if (!var) {
+	var = std::make_shared<ast::Variable>(name);
+	(*current_variable_table)[name] = var;
+      }
+      var->set_type(type);
     }
   }
 
