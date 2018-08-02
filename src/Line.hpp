@@ -20,6 +20,12 @@ public:
   bool read_token(const std::string str);
   std::string read_int_constant();
   std::string read_real_constant();
+  int get_line_num() {return line_num;};
+  int get_column() {return column;};
+  void set_column(int n) {column = n;};
+  std::string get_content() {return content;};
+  std::string get_content_orig() {return content_orig;};
+private:
   int line_num;
   int column;
   std::string content;
