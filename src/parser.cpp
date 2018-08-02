@@ -1,10 +1,12 @@
 #include "parser.hpp"
 #include "cst.hpp"
+#include "Line.hpp"
 #include <string>
 #include <iostream>
 #include <algorithm>
 #include <memory>
 #include <ctype.h>
+#include <stack>
 
 using namespace cst;
 
@@ -13,138 +15,102 @@ namespace parser{
   // TODO: multiple Program Unit
   // TODO: fixed form
   // TODO: continuous line
-  int ofs;
-  std::string source; // lower
-  std::string source_orig; // same as user described, for error message
+  int row;
   std::string filename;
   bool error_occured;
-  int32_t get_column()
+  std::vector<Line*> source;
+  std::stack<int> saved_ofs_stack;
+  Line *current_line;
+  void preprocess(std::string str, std::string name)
   {
-    return std::count(source.begin(), source.begin()+ofs, '\n') + 1;
+    row = 0;
+    error_occured = false;
+    filename = name;
+    source.clear();
+
+    for (int head=0, tail=0, lineno=0; tail < str.size(); tail++) {
+      if (str[tail] == '\n') {
+        lineno++;
+        source.push_back(new Line(lineno, str.substr(head, tail-head)));
+        head = tail+1;
+      }
+    }
+    current_line = source[0];
   }
   void error(std::string msg)
   {
     error_occured = true;
-    std::cout << filename << ":" << get_column() << " error: " << msg << std::endl;
+    std::cout << filename << ":" << row+1 << " error: " << msg << std::endl;
   }
-  bool is_blank(char c)
+  bool is_eof()
   {
-    return (c == ' ' || c == '\t');
+    return source.size() == row;
   }
   void skip_this_line()
   {
-    while (source[ofs] != '\n') {
-      ofs++;
-    }
-  }
-  void skip_blanks()
-  {
-    while (is_blank(source[ofs])) {
-      ofs++;
-    }
-  }
-  std::string read_name()
-  {
-    skip_blanks();
-    if (!isalpha(source[ofs])) {
-      return "";
-    }
-    int begin = ofs;
-    while (isalpha(source[ofs]) ||
-	   isdigit(source[ofs]) ||
-	   source[ofs] == '_') {
-      ofs++;
-    }
-    return source.substr(begin, ofs-begin);
-  }
-  bool read_one_blank()
-  {
-    if (is_blank(source[ofs])) {
-      ofs++;
-      return true;
-    }
-    ofs--;
-    return false;
-  }
-  bool is_end_of_line()
-  {
-    auto save_ofs = ofs;
-    skip_blanks();
-    if (source[ofs] == '\n') {
-      return true;
-    } else {
-      ofs = save_ofs;
-      return false;
-    }
+    current_line = source[++row];
+    assert(saved_stack_ofs.size() == 0);
   }
   void skip_blank_lines()
   {
-    while (is_blank(source[ofs]) || source[ofs] == '\n' ) {
-      ofs++;
+    while (!is_eof() && current_line->is_end_of_line()) {
+      skip_this_line();
     }
   }
-  bool read_token(const std::string str)
+  void save_ofs()
   {
-    auto save_ofs = ofs;
-    skip_blanks();
-    if (std::equal(str.begin(), str.end(), source.begin()+ofs)) {
-      ofs += str.size();
-      return true;
-    } else {
-      ofs = save_ofs;
-      return false;
-    }
+    saved_ofs_stack.push(current_line->column);
+  }
+  void restore_ofs()
+  {
+    current_line->column = saved_ofs_stack.top();
+    saved_ofs_stack.pop();
+  }
+  void discard_saved_ofs()
+  {
+    saved_ofs_stack.pop();
   }
   bool assert_end_of_line()
   {
-    if (is_end_of_line()) {
+    if (current_line->is_end_of_line()) {
       return true;
     } else {
       error("unexpected token in end of line");
       return false;
     }
   }
-
-  std::unique_ptr<Constant> read_int_constant()
+  bool is_end_of_line()
   {
-    auto save_ofs = ofs;
-    if (!isdigit(source[ofs])) {
-      return nullptr;
-    }
-    int begin = ofs;
-    while (isdigit(source[ofs])) {
-      ofs++;
-    }
-    std::string value = source.substr(begin, ofs-begin);
-    std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "integer", value) };
-    return std::move(cnt);
+    return current_line->is_end_of_line();
   }
-  std::unique_ptr<Constant> read_real_constant()
+  std::string read_name()
   {
-    auto save_ofs = ofs;
-    int begin = ofs;
-    while (isdigit(source[ofs])) {
-      ofs++;
-    }
-    if (source[ofs++] == '.' && isdigit(source[ofs])) {
-      while (isdigit(source[ofs])) {
-	ofs++;
-      }
-      std::string value = source.substr(begin, ofs-begin);
-      std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "real", value) };
-      return std::move(cnt);
-    } else {
-      ofs = save_ofs;
-      return nullptr;
-    }
+    return current_line->read_name();
+  }
+  bool read_one_blank()
+  {
+    return current_line->read_one_blank();
+  }
+  bool read_token(const std::string str)
+  {
+    return current_line->read_token(str);
   }
   std::unique_ptr<Constant> read_constant()
   {
-    std::unique_ptr<Constant> cnt; 
-    if ((cnt = read_real_constant())) return cnt;
-    if ((cnt = read_int_constant())) return cnt;
+    std::string value;
+    value = current_line->read_real_constant();
+    if (value != "") {
+      std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "real", value) };
+      return std::move(cnt);
+    }
+    value = current_line->read_int_constant();
+    if (value != "") {
+      std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "integer", value) };
+      return std::move(cnt);
+    }
     return nullptr;
   }
+
   std::unique_ptr<Program> parse_program_stmt()
   {
     skip_blank_lines();
@@ -152,13 +118,13 @@ namespace parser{
     {
       read_token("program");
       if (!read_one_blank()) {
-	error("missing whitespace after PROGRAM");
-	goto exit;
+        error("missing whitespace after PROGRAM");
+        goto exit;
       }
       name = read_name();
       if (name == "") {
-	error("missing program name in program-stmt");
-	goto exit;
+        error("missing program name in program-stmt");
+        goto exit;
       }
     }
     assert_end_of_line();
@@ -276,17 +242,18 @@ namespace parser{
   }
   std::unique_ptr<Assignment_statement> parse_assignment_stmt()
   {
-    int saved_offset = ofs;
+    save_ofs();
     std::unique_ptr<Assignment_statement> assignment_stmt {new Assignment_statement()};
     // only variable is acceptable as a left side of assignment statement
     std::string name = read_name();
     if (!read_token("=")) {
-      ofs = saved_offset; // roll back
+      restore_ofs();
       return nullptr;
     }
     std::unique_ptr<Variable> var { new Variable(name) };
     assignment_stmt->set_lhs(std::move(var));
     assignment_stmt->set_rhs(parse_expression());
+    discard_saved_ofs();
     return std::move(assignment_stmt);
   }
   std::unique_ptr<Print_statement> parse_print_stmt()
@@ -333,12 +300,7 @@ namespace parser{
   }
   std::unique_ptr<Program> parse(const std::string str, const std::string name)
   {
-    ofs = 0;
-    source_orig = str;
-    source = str;
-    error_occured = false;
-    filename = name;
-    std::transform(source.begin(), source.end(), source.begin(), tolower);
+    preprocess(str, name);
     std::unique_ptr<Program> program = parse_main_program();
     if (error_occured) {
       return nullptr;
@@ -354,8 +316,8 @@ int main()
   std::string str;
   std::cin.unsetf(std::ios::skipws);
   std::copy(std::istreambuf_iterator<char>(std::cin),
-	    std::istreambuf_iterator<char>(),
-	    std::back_inserter(str));
+            std::istreambuf_iterator<char>(),
+            std::back_inserter(str));
   std::unique_ptr<Program> program = parser::parse(str);
   program->print();
   return 0;

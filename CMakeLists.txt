@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project(small_fortran_compiler)
-set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_FLAGS "-std=c++14 -g -O0")
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG_MODE")
 
@@ -12,7 +12,7 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_executable(sfc src/main.cpp src/parser.cpp src/ast.cpp src/IR_generator.cpp src/semantic_analysis.cpp src/cst.cpp)
+add_executable(sfc src/main.cpp src/parser.cpp src/ast.cpp src/IR_generator.cpp src/semantic_analysis.cpp src/cst.cpp src/Line.cpp)
 add_library(fortio STATIC runtime/write.c)
 
 # Find the libraries that correspond to the LLVM components
