@@ -11,6 +11,11 @@
 using namespace cst;
 
 namespace parser{
+  enum class err_kind : int {
+    end_of_line,
+    name,
+    character
+  };
   std::unique_ptr<Expression> parse_expression();
   // TODO: multiple Program Unit
   // TODO: fixed form
@@ -21,6 +26,7 @@ namespace parser{
   std::vector<Line*> source;
   std::stack<int> saved_ofs_stack;
   Line *current_line;
+
   void preprocess(std::string str, std::string name)
   {
     row = 0;
@@ -37,10 +43,27 @@ namespace parser{
     }
     current_line = source[0];
   }
-  void error(std::string msg)
+  void error(std::string msg, enum err_kind kind=err_kind::character)
   {
     error_occured = true;
-    std::cout << filename << ":" << row+1 << " error: " << msg << std::endl;
+    std::cout << filename << ":" << row+1 << ":" << current_line->get_column()+1 << " error: " << msg << std::endl;
+    std::cout << "    " << current_line->get_content_orig() << std::endl;
+    std::cout << "    " << std::string(current_line->get_column(), ' ');
+    int length=1;
+    switch (kind) {
+    case err_kind::end_of_line:
+      length = current_line->get_content().size() - current_line->get_column();
+      break;
+    case err_kind::name:
+      {
+        std::string name = current_line->read_name();
+        length = name.size();
+        break;
+      }
+    case err_kind::character:
+      break;
+    }
+    std::cout << std::string(length, '^') << std::endl;
   }
   bool is_eof()
   {
@@ -59,11 +82,11 @@ namespace parser{
   }
   void save_ofs()
   {
-    saved_ofs_stack.push(current_line->column);
+    saved_ofs_stack.push(current_line->get_column());
   }
   void restore_ofs()
   {
-    current_line->column = saved_ofs_stack.top();
+    current_line->set_column(saved_ofs_stack.top());
     saved_ofs_stack.pop();
   }
   void discard_saved_ofs()
@@ -75,7 +98,8 @@ namespace parser{
     if (current_line->is_end_of_line()) {
       return true;
     } else {
-      error("unexpected token in end of line");
+      current_line->skip_blanks();
+      error("unexpected token in end of line", err_kind::end_of_line);
       return false;
     }
   }
@@ -123,7 +147,7 @@ namespace parser{
       }
       name = read_name();
       if (name == "") {
-        error("missing program name in program-stmt");
+        error("missing program name in program-stmt", err_kind::character);
         goto exit;
       }
     }
@@ -145,7 +169,7 @@ namespace parser{
       goto errexit;
     }
     if (!read_token("program")) {
-      error("unexpected token in end-program-stmt");
+      error("unexpected token in end-program-stmt", err_kind::character);
       goto errexit;
     }
     if (is_end_of_line()) {
@@ -156,7 +180,7 @@ namespace parser{
       goto errexit;
     }
     if (!read_token(name)) {
-      error("name is different from the corresponding program-stmt");
+      error("name is different from the corresponding program-stmt", err_kind::name);
       goto errexit;
     }
     if (!assert_end_of_line()) {
