@@ -31,7 +31,6 @@ bool Line::read_one_blank()
     column++;
     return true;
   }
-  column--;
   return false;
 }
 bool Line::is_end_of_line()
@@ -57,7 +56,6 @@ bool Line::read_token(const std::string str)
     return false;
   }
 }
-
 std::string Line::read_int_constant()
 {
   int save_ofs = column;
