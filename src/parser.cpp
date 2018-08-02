@@ -43,7 +43,7 @@ namespace parser{
     }
     current_line = source[0];
   }
-  void error(std::string msg, enum err_kind kind=err_kind::character)
+  void error(std::string msg, enum err_kind kind)
   {
     error_occured = true;
     std::cout << filename << ":" << row+1 << ":" << current_line->get_column()+1 << " error: " << msg << std::endl;
@@ -111,9 +111,16 @@ namespace parser{
   {
     return current_line->read_name();
   }
-  bool read_one_blank()
+  bool read_one_blank(bool output_error=true)
   {
-    return current_line->read_one_blank();
+    if (current_line->read_one_blank()) {
+      return true;
+    } else {
+      if (output_error) {
+        error("missing whitespace", err_kind::character);
+      }
+      return false;
+    }
   }
   bool read_token(const std::string str)
   {
@@ -142,7 +149,6 @@ namespace parser{
     {
       read_token("program");
       if (!read_one_blank()) {
-        error("missing whitespace after PROGRAM");
         goto exit;
       }
       name = read_name();
@@ -165,7 +171,6 @@ namespace parser{
       return true;
     }
     if (!read_one_blank()) {
-      error("missing whitespace after END");
       goto errexit;
     }
     if (!read_token("program")) {
@@ -176,7 +181,6 @@ namespace parser{
       return true;
     }
     if (!read_one_blank()) {
-      error("missing whitespace after PROGRAM");
       goto errexit;
     }
     if (!read_token(name)) {
