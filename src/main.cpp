@@ -29,11 +29,15 @@ bool compile(std::fstream &fs, std::string infile_name, std::string outfile_name
   }
   std::unique_ptr<cst::Program> cst_program = parser::parse(str, infile_name);
   if (!cst_program) return false;
-  // std::cout << "=== CST ===" << std::endl;
-  // cst_program->print();
+#ifdef DEBUG_MODE
+  std::cout << "=== CST ===" << std::endl;
+  cst_program->print();
+#endif
   std::shared_ptr<ast::Program_unit> ast_program = cst_program->ASTgen();
-  // std::cout << std::endl << "=== AST ===" << std::endl;
-  // ast_program->print("");
+#ifdef DEBUG_MODE
+  std::cout << std::endl << "=== AST ===" << std::endl;
+  ast_program->print("");
+#endif
   IR_generator::generate_IR(ast_program);
   // generate .o
   IR_generator::codeout(outfile_name);
