@@ -56,21 +56,24 @@ namespace cst {
   }
   std::unique_ptr<ast::Expression> Expression::ASTgen()
   {
-    std::unique_ptr<ast::Expression> exp { new ast::Expression() };
-    if (this->exp_operator == "+") {
-      exp->set_operator(ast::operators::add);
-    } else if (this->exp_operator == "-") {
-      exp->set_operator(ast::operators::sub);
-    } else if (this->exp_operator == "*") {
-      exp->set_operator(ast::operators::mul);
-    } else if (this->exp_operator == "/") {
-      exp->set_operator(ast::operators::div);
-    }  else if (this->exp_operator == "") {
-      exp->set_operator(ast::operators::leaf);
-    }
+    std::unique_ptr<ast::Expression> exp;
     if (is_binary_operator(this->exp_operator)) {
-      exp->set_lhs(this->operands[0]->ASTgen());
-      exp->set_rhs(this->operands[1]->ASTgen());
+      ast::operators op;
+      if (this->exp_operator == "+") {
+        op = ast::operators::add;
+      } else if (this->exp_operator == "-") {
+        op = ast::operators::sub;
+      } else if (this->exp_operator == "*") {
+        op = ast::operators::mul;
+      } else if (this->exp_operator == "/") {
+        op = ast::operators::div;
+      }  else if (this->exp_operator == "") {
+        // is this necessary?
+        op = ast::operators::leaf;
+      }
+      std::unique_ptr<ast::Expression> lhs = this->operands[0]->ASTgen();
+      std::unique_ptr<ast::Expression> rhs = this->operands[1]->ASTgen();
+      exp = std::make_unique<ast::Binary_op>(op, std::move(lhs), std::move(rhs));
     } else if (is_unary_operator(this->exp_operator)) {
       assert(false);
     } else {

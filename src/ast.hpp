@@ -42,16 +42,39 @@ namespace ast {
   
   class Expression {
   public:
+    virtual void print() const = 0;
+    virtual llvm::Value *codegen() const = 0;
+    virtual enum Type_kind get_type() const = 0;
+  };
+
+  class Binary_op : public Expression {
+  public:
+    Binary_op(operators op, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs) : exp_operator(op) {
+      this->lhs = std::move(lhs);
+      this->rhs = std::move(rhs);
+    }
     void set_operator(enum operators op) {this->exp_operator = op;}
     void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
     void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
-    virtual void print() const;
-    virtual llvm::Value *codegen() const;
-    virtual enum Type_kind get_type() const;
+    void print() const;
+    llvm::Value *codegen() const;
+    enum Type_kind get_type() const;
   private:
     enum operators exp_operator;
     std::unique_ptr<Expression> lhs;
     std::unique_ptr<Expression> rhs;
+  };
+
+  class Unary_op : public Expression {
+  public:
+    void set_operator(enum operators op) {this->exp_operator = op;}
+    void set_operand(std::unique_ptr<Expression> elm) {this->operand = std::move(elm);}
+    void print() const;
+    llvm::Value *codegen() const;
+    enum Type_kind get_type() const;
+  private:
+    enum operators exp_operator;
+    std::unique_ptr<Expression> operand;
   };
   
   class Constant : public Expression {

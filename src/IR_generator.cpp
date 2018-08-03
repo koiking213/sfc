@@ -125,8 +125,10 @@ namespace ast {
   llvm::Value *Variable_reference::codegen() const {
     return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
   }
-  
-  llvm::Value *Expression::codegen() const {
+  llvm::Value *Unary_op::codegen() const {
+    return nullptr;
+  }
+  llvm::Value *Binary_op::codegen() const {
     llvm::Value *lhs = this->lhs->codegen();
     llvm::Value *rhs = this->rhs->codegen();
     switch (this->exp_operator) {

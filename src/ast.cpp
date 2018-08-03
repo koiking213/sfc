@@ -32,7 +32,13 @@ namespace ast {
       return "pointer";
     }
   }
-  void Expression::print() const
+  void Unary_op::print() const
+  {
+    std::cout << operator_to_string(this->exp_operator);
+    this->operand->print();
+    std::cout << std::endl;
+  }
+  void Binary_op::print() const
   {
     this->lhs->print();
     std::cout << operator_to_string(this->exp_operator);
@@ -106,7 +112,11 @@ namespace ast {
     std::cout << type_to_string(this->type_kind);
   }
 
-  enum Type_kind Expression::get_type() const
+  enum Type_kind Unary_op::get_type() const
+  {
+    return operand->get_type();
+  }
+  enum Type_kind Binary_op::get_type() const
   {
     enum Type_kind l = lhs->get_type();
     enum Type_kind r = rhs->get_type();
