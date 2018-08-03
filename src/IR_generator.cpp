@@ -130,10 +130,38 @@ namespace ast {
     llvm::Value *lhs = this->lhs->codegen();
     llvm::Value *rhs = this->rhs->codegen();
     switch (this->exp_operator) {
-    case operators::add: return builder.CreateAdd(lhs, rhs, "add_tmp");
-    case operators::sub: return builder.CreateSub(lhs, rhs, "sub_tmp");
-    case operators::mul: return builder.CreateMul(lhs, rhs, "mul_tmp");
-    case operators::div: return builder.CreateSDiv(lhs, rhs, "div_tmp");
+    case operators::add:
+      if (this->get_type() == Type_kind::i32) {
+        return builder.CreateAdd(lhs, rhs, "add_tmp");
+      } else if (this->get_type() == Type_kind::fp32) {
+        return builder.CreateFAdd(lhs, rhs, "fadd_tmp");
+      } else {
+        assert(0);
+      }
+    case operators::sub:
+      if (this->get_type() == Type_kind::i32) {
+        return builder.CreateSub(lhs, rhs, "sub_tmp");
+      } else if (this->get_type() == Type_kind::fp32) {
+        return builder.CreateFSub(lhs, rhs, "fsub_tmp");
+      } else {
+        assert(0);
+      }
+    case operators::mul:
+      if (this->get_type() == Type_kind::i32) {
+        return builder.CreateMul(lhs, rhs, "mul_tmp");
+      } else if (this->get_type() == Type_kind::fp32) {
+        return builder.CreateFMul(lhs, rhs, "fmul_tmp");
+      } else {
+        assert(0);
+      }
+    case operators::div:
+      if (this->get_type() == Type_kind::i32) {
+        return builder.CreateSDiv(lhs, rhs, "div_tmp");
+      } else if (this->get_type() == Type_kind::fp32) {
+        return builder.CreateFDiv(lhs, rhs, "fdiv_tmp");
+      } else {
+        assert(0);
+      }
     default:return nullptr;
     }
   }

@@ -72,7 +72,7 @@ namespace parser{
   void skip_this_line()
   {
     current_line = source[++row];
-    assert(saved_stack_ofs.size() == 0);
+    assert(saved_ofs_stack.size() == 0);
   }
   void skip_blank_lines()
   {
