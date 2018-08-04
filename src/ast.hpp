@@ -5,7 +5,8 @@
 
 namespace ast {
   enum class binary_op_kind {
-    add, sub, mul, div
+    add, sub, mul, div,
+    eq, ne, lt, le, gt, ge
   };
 
   enum class unary_op_kind {

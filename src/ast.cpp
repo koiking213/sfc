@@ -131,6 +131,15 @@ namespace ast {
   }
   enum Type_kind Binary_op::get_type() const
   {
+    if (this->exp_operator == binary_op_kind::eq ||
+        this->exp_operator == binary_op_kind::ne ||
+        this->exp_operator == binary_op_kind::lt ||
+        this->exp_operator == binary_op_kind::le ||
+        this->exp_operator == binary_op_kind::gt ||
+        this->exp_operator == binary_op_kind::ge)
+      {
+        return Type_kind::logical;
+      }
     enum Type_kind l = lhs->get_type();
     enum Type_kind r = rhs->get_type();
     if (l==r) return l;

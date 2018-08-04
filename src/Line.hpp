@@ -18,6 +18,7 @@ public:
   bool read_one_blank();
   bool is_end_of_line();
   bool read_token(const std::string str);
+  bool read_operator(const std::string op);
   std::string read_int_constant();
   std::string read_real_constant();
   std::string read_logical_constant();

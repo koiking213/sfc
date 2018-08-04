@@ -126,6 +126,10 @@ namespace parser{
   {
     return current_line->read_token(str);
   }
+  bool read_operator(const std::string str)
+  {
+    return current_line->read_operator(str);
+  }
   std::unique_ptr<Constant> read_constant()
   {
     std::string value;
@@ -249,32 +253,71 @@ namespace parser{
   {
     std::unique_ptr<Expression> exp { new Expression() };
     std::unique_ptr<Expression> left = parse_mult_operand();
-    if (read_token("*")) {
+    if (read_operator("*")) {
       exp->set_operator("*");
-    } else if (read_token("/")) {
+    } else if (read_operator("/")) {
       exp->set_operator("/");
     } else {
       return std::move(left);
     }
     exp->add_operand(std::move(left));
-    exp->add_operand(parse_expression());
+    exp->add_operand(parse_add_operand());
     return std::move(exp);
   }
-  std::unique_ptr<Expression> parse_expression()
+  std::unique_ptr<Expression> parse_level2_expr()
   {
     std::unique_ptr<Expression> exp { new Expression() };
     std::unique_ptr<Expression> left = parse_add_operand();
-    if (read_token("+")) {
+    if (read_operator("+")) {
       exp->set_operator("+");
-    } else if (read_token("-")) {
+    } else if (read_operator("-")) {
       exp->set_operator("-");
+    } else {
+      return std::move(left);
+    }
+    exp->add_operand(std::move(left));
+    exp->add_operand(parse_level2_expr());
+    return std::move(exp);
+  }
+  
+  std::unique_ptr<Expression> parse_expression()
+  {
+    // level-4-expr
+    std::unique_ptr<Expression> exp { new Expression() };
+    std::unique_ptr<Expression> left = parse_level2_expr();
+    if (read_operator(".eq.")) {
+      exp->set_operator("==");
+    } else if (read_operator(".ne.")) {
+      exp->set_operator("/=");
+    } else if (read_operator(".lt.")) {
+      exp->set_operator("<");
+    } else if (read_operator(".le.")) {
+      exp->set_operator("<=");
+    } else if (read_operator(".gt.")) {
+      exp->set_operator(">");
+    } else if (read_operator(".ge.")) {
+      exp->set_operator(">=");
+    } else if (read_operator("==")) {
+      exp->set_operator("==");
+    } else if (read_operator("/=")) {
+      exp->set_operator("/=");
+    } else if (read_operator("<")) {
+      exp->set_operator("<");
+    } else if (read_operator("<=")) {
+      exp->set_operator("<=");
+    } else if (read_operator(">")) {
+      exp->set_operator(">");
+    } else if (read_operator(">=")) {
+      exp->set_operator(">=");
     } else {
       return std::move(left);
     }
     exp->add_operand(std::move(left));
     exp->add_operand(parse_expression());
     return std::move(exp);
+    
   }
+
   std::unique_ptr<Assignment_statement> parse_assignment_stmt()
   {
     save_ofs();

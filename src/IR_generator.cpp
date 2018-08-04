@@ -178,6 +178,54 @@ namespace ast {
       } else {
         assert(0);
       }
+    case binary_op_kind::eq:
+      if (this->lhs->get_type() == Type_kind::i32) {
+        return builder.CreateICmpEQ(lhs, rhs, "ieq_tmp");
+      } else if (this->lhs->get_type() == Type_kind::fp32) {
+        return builder.CreateFCmpUEQ(lhs, rhs, "feq_tmp");
+      } else {
+        assert(0);
+      }
+    case binary_op_kind::ne:
+      if (this->lhs->get_type() == Type_kind::i32) {
+        return builder.CreateICmpNE(lhs, rhs, "ine_tmp");
+      } else if (this->lhs->get_type() == Type_kind::fp32) {
+        return builder.CreateFCmpUNE(lhs, rhs, "fne_tmp");
+      } else {
+        assert(0);
+      }
+    case binary_op_kind::lt:
+      if (this->lhs->get_type() == Type_kind::i32) {
+        return builder.CreateICmpSLT(lhs, rhs, "ilt_tmp");
+      } else if (this->lhs->get_type() == Type_kind::fp32) {
+        return builder.CreateFCmpULT(lhs, rhs, "flt_tmp");
+      } else {
+        assert(0);
+      }
+    case binary_op_kind::le:
+      if (this->lhs->get_type() == Type_kind::i32) {
+        return builder.CreateICmpSLE(lhs, rhs, "ile_tmp");
+      } else if (this->lhs->get_type() == Type_kind::fp32) {
+        return builder.CreateFCmpULE(lhs, rhs, "fle_tmp");
+      } else {
+        assert(0);
+      }
+    case binary_op_kind::gt:
+      if (this->lhs->get_type() == Type_kind::i32) {
+        return builder.CreateICmpSGT(lhs, rhs, "igt_tmp");
+      } else if (this->lhs->get_type() == Type_kind::fp32) {
+        return builder.CreateFCmpUGT(lhs, rhs, "fgt_tmp");
+      } else {
+        assert(0);
+      }
+    case binary_op_kind::ge:
+      if (this->lhs->get_type() == Type_kind::i32) {
+        return builder.CreateICmpSGE(lhs, rhs, "ige_tmp");
+      } else if (this->lhs->get_type() == Type_kind::fp32) {
+        return builder.CreateFCmpUGE(lhs, rhs, "fge_tmp");
+      } else {
+        assert(0);
+      }
     }
   }
 

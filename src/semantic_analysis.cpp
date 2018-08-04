@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "ast.hpp"
+#include <set>
 
 static std::unique_ptr<std::map<std::string, std::shared_ptr<ast::Variable>>> current_variable_table;
 static std::unique_ptr<std::map<std::string, std::shared_ptr<ast::Type>>> current_type_table;
@@ -13,10 +14,8 @@ namespace cst {
   
   bool is_binary_operator(std::string op)
   {
-    if (op == "+" || op == "-" || op == "*" || op == "/") {
-      return true;
-    }
-    return false;
+    static std::set<std::string> binary_ops{"+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="};
+    return binary_ops.find(op) != binary_ops.end();
   }
   bool is_unary_operator(std:: string op)
   {
@@ -77,6 +76,18 @@ namespace cst {
         op = ast::binary_op_kind::mul;
       } else if (this->exp_operator == "/") {
         op = ast::binary_op_kind::div;
+      } else if (this->exp_operator == "==") {
+        op = ast::binary_op_kind::eq;
+      } else if (this->exp_operator == "/=") {
+        op = ast::binary_op_kind::ne;
+      } else if (this->exp_operator == "<") {
+        op = ast::binary_op_kind::lt;
+      } else if (this->exp_operator == "<=") {
+        op = ast::binary_op_kind::le;
+      } else if (this->exp_operator == ">") {
+        op = ast::binary_op_kind::gt;
+      } else if (this->exp_operator == ">=") {
+        op = ast::binary_op_kind::ge;
       }  else {
         std::cout << "internal error: unknown operator" << std::endl;
         assert(0);
@@ -167,11 +178,6 @@ namespace cst {
     }
     return static_unique_pointer_cast<ast::Statement>(std::move(ast_output_stmt));
   }
-
-  // std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition()
-  // {
-  //   return std::move(new ast::Variable_definition(this->name));
-  // }
 }
 
 

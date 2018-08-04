@@ -95,4 +95,18 @@ std::string Line::read_logical_constant()
   }
   return "";
 }
+bool Line::read_operator(const std::string op)
+{
+  int save_ofs = column;
+  skip_blanks();
+  if (std::equal(op.begin(), op.end(), content.begin()+column)) {
+    char c = content[column+op.size()];
+    if (isalpha(c) || isdigit(c)) {
+      column += op.size();
+      return true;
+    }
+  }
+  column = save_ofs;
+  return false;
+}
 
