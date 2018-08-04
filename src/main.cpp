@@ -12,9 +12,7 @@
 /* program -> CST -> AST -> IR */
 /* CST -> ASTでエラーチェックを行い、AST -> IRは機械的に行う */
 
-static bool debug_mode = false;
-
-bool compile(std::fstream &fs, std::string infile_name, std::string outfile_name) {
+bool compile(std::fstream &fs, std::string infile_name, std::string outfile_name, bool debug_mode) {
   std::string str, line;
   while (getline(fs, line)) {
     str += line + '\n';
@@ -30,7 +28,7 @@ bool compile(std::fstream &fs, std::string infile_name, std::string outfile_name
     std::cout << std::endl << "=== AST ===" << std::endl;
     ast_program->print("");
   }
-  IR_generator::generate_IR(ast_program);
+  IR_generator::generate_IR(ast_program, debug_mode);
   // generate .o
   IR_generator::codeout(outfile_name);
   return true;
@@ -51,6 +49,7 @@ void link(std::vector<std::string> file_list, std::vector<std::string> option_li
 }
 
 int main(int argc, char* argv[]) {
+  bool debug_mode = false;
   std::vector<std::string> outfile_list;
   std::vector<std::string> objfile_list;
   std::vector<std::string> option_list;
@@ -88,7 +87,7 @@ int main(int argc, char* argv[]) {
       if (link_flag) {
 	outfile_name = tmpdir + "/" + outfile_name;
       }
-      success &= compile(fs, filename, outfile_name);
+      success &= compile(fs, filename, outfile_name, debug_mode);
       outfile_list.push_back(outfile_name);
       fs.close();
     } else if (filename.find(".o", filename.size() - 2) != std::string::npos) {

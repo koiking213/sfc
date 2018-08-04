@@ -85,4 +85,14 @@ std::string Line::read_real_constant()
     return "";
   }
 }
+std::string Line::read_logical_constant()
+{
+  if (this->read_token(".true.")) {
+    return ".true.";
+  }
+  if (this->read_token(".false.")) {
+    return ".false.";
+  }
+  return "";
+}
 

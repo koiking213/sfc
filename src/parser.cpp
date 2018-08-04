@@ -139,6 +139,11 @@ namespace parser{
       std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "integer", value) };
       return std::move(cnt);
     }
+    value = current_line->read_logical_constant();
+    if (value != "") {
+      std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "logical", value) };
+      return std::move(cnt);
+    }
     return nullptr;
   }
 
@@ -205,6 +210,8 @@ namespace parser{
       spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "integer");
     } else if (read_token("real")) {
       spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "real");
+    } else if (read_token("logical")) {
+      spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "logical");
     } else {
       return nullptr;
     }

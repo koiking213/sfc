@@ -58,6 +58,10 @@ namespace ast {
   {
     std::cout << "(real32)" << this->value;
   }
+  void Logical_constant::print() const
+  {
+    std::cout << "(logical)" << this->value;
+  }
   void Variable_reference::print() const
   {
     std::cout << this->var->get_name();

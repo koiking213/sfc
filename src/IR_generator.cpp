@@ -39,7 +39,6 @@ namespace IR_generator {
     llvm::FunctionType *func_type =
       llvm::FunctionType::get(llvm::Type::getInt32Ty(context), int_types, true);
 
-    // TODO: write -> write
     llvm::Function *func =
       llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_int", module);
     procedure_table["_write_int"] = func;
@@ -50,6 +49,13 @@ namespace IR_generator {
     func =
       llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_float", module);
     procedure_table["_write_float"] = func;
+    for (auto &arg : func->args()) {
+      arg.setName("value");
+    }
+
+    func =
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_logical", module);
+    procedure_table["_write_logical"] = func;
     for (auto &arg : func->args()) {
       arg.setName("value");
     }
@@ -105,13 +111,14 @@ namespace IR_generator {
     dest.flush();
   }
   
-  void generate_IR(const std::shared_ptr<ast::Program_unit> program) {
+  void generate_IR(const std::shared_ptr<ast::Program_unit> program, bool debug_mode) {
     module = new llvm::Module("top", context);
     add_library_prototype_to_module();
     program->codegen();
-#if DEBUG_MODE
-    module->print(llvm::errs(), nullptr);
-#endif
+    if (debug_mode) {
+      std::cout << "=== LLVM IR ===" << std::endl;
+      module->print(llvm::errs(), nullptr);
+    }
   }
 }
 
@@ -121,6 +128,9 @@ namespace ast {
   }
   llvm::Value *FP32_constant::codegen() const {
     return llvm::ConstantFP::get(llvm::Type::getFloatTy(context), this->value);
+  }
+  llvm::Value *Logical_constant::codegen() const {
+    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), this->get_int_value());
   }
   llvm::Value *Variable_reference::codegen() const {
     return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
@@ -189,11 +199,13 @@ namespace ast {
       args.push_back(elm->codegen());
       llvm::Function *callee;
       if (elm->get_type() == Type_kind::i32) {
-	callee = module->getFunction("_write_int");
+        callee = module->getFunction("_write_int");
       } else if (elm->get_type() == Type_kind::fp32) {
-	callee = module->getFunction("_write_float");
+        callee = module->getFunction("_write_float");
+      } else if (elm->get_type() == Type_kind::logical) {
+        callee = module->getFunction("_write_logical");
       } else {
-	assert(0);
+        assert(0);
       }
       builder.CreateCall(callee, args, "call_tmp");
     }

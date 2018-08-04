@@ -41,13 +41,23 @@ namespace cst {
   {
     if (this->type_kind == Type_kind::Intrinsic) {
       if (this->type_name == "integer") {
-	std::unique_ptr<ast::Int32_constant> cnt { new ast::Int32_constant(std::stoi(this->value)) };
-	return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
+        std::unique_ptr<ast::Int32_constant> cnt { new ast::Int32_constant(std::stoi(this->value)) };
+        return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
       } else if (this->type_name == "real") {
-	std::unique_ptr<ast::FP32_constant> cnt { new ast::FP32_constant(std::strtod(this->value.c_str(), nullptr)) };
-	return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
+        std::unique_ptr<ast::FP32_constant> cnt { new ast::FP32_constant(std::strtod(this->value.c_str(), nullptr)) };
+        return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
+      } else if (this->type_name == "logical") {
+        std::unique_ptr<ast::Logical_constant> cnt;
+        if (this->value == ".true.") {
+          cnt = std::make_unique<ast::Logical_constant>(true);
+        } else if (this->value == ".false.") {
+          cnt = std::make_unique<ast::Logical_constant>(false);
+        } else {
+          assert(0);
+        }
+        return static_unique_pointer_cast<ast::Expression>(std::move(cnt));
       } else {
-	assert(false);
+        assert(false);
       }
     } else {
       assert(false);
@@ -142,8 +152,8 @@ namespace cst {
     for (std::string name : this->variables) {
       std::shared_ptr<ast::Variable> var = (*current_variable_table)[name];
       if (!var) {
-	var = std::make_shared<ast::Variable>(name);
-	(*current_variable_table)[name] = var;
+        var = std::make_shared<ast::Variable>(name);
+        (*current_variable_table)[name] = var;
       }
       var->set_type(type);
     }

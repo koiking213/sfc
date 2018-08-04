@@ -8,3 +8,11 @@ void _write_float(float value)
 {
   printf("%f\n", value);
 }
+void _write_logical(int value)
+{
+  if (value) {
+    puts("T");
+  } else {
+    puts("F");
+  }
+}

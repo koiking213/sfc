@@ -98,7 +98,7 @@ namespace ast {
     Int32_constant(int32_t val) {this->value = val;}
     void print() const;
     llvm::Value *codegen() const;
-    int32_t get_value() {return value;}
+    int32_t get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::i32;};
   private:
     int32_t value;
@@ -109,10 +109,22 @@ namespace ast {
     FP32_constant(float val) {this->value = val;}
     void print() const;
     llvm::Value *codegen() const;
-    float get_value() {return value;}
+    float get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::fp32;};
   private:
     float value;
+  };
+
+  class Logical_constant : public Constant {
+  public:
+    Logical_constant(bool val) : value(val) {};
+    void print() const;
+    llvm::Value *codegen() const;
+    bool get_value() const {return value;}
+    Type_kind get_type() const {return Type_kind::logical;}
+    int get_int_value() const {return 1 ? value : 0;}
+  private:
+    bool value;
   };
 
   class Variable_reference : public Expression {
