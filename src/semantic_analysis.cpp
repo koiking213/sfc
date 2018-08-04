@@ -58,21 +58,34 @@ namespace cst {
   {
     std::unique_ptr<ast::Expression> exp;
     if (is_binary_operator(this->exp_operator)) {
-      ast::operators op;
+      ast::binary_op_kind op;
       if (this->exp_operator == "+") {
-        op = ast::operators::add;
+        op = ast::binary_op_kind::add;
       } else if (this->exp_operator == "-") {
-        op = ast::operators::sub;
+        op = ast::binary_op_kind::sub;
       } else if (this->exp_operator == "*") {
-        op = ast::operators::mul;
+        op = ast::binary_op_kind::mul;
       } else if (this->exp_operator == "/") {
-        op = ast::operators::div;
-      }  else if (this->exp_operator == "") {
-        // is this necessary?
-        op = ast::operators::leaf;
+        op = ast::binary_op_kind::div;
+      }  else {
+        std::cout << "internal error: unknown operator" << std::endl;
+        assert(0);
       }
       std::unique_ptr<ast::Expression> lhs = this->operands[0]->ASTgen();
       std::unique_ptr<ast::Expression> rhs = this->operands[1]->ASTgen();
+      if (lhs->get_type() != rhs->get_type()) {
+        // cast
+        if (lhs->get_type() == ast::Type_kind::fp32 &&
+            rhs->get_type() == ast::Type_kind::i32) {
+          rhs = std::make_unique<ast::Unary_op>(ast::unary_op_kind::i32tofp32, std::move(rhs));
+        } else if (lhs->get_type() == ast::Type_kind::i32 &&
+                   rhs->get_type() == ast::Type_kind::fp32) {
+          lhs = std::make_unique<ast::Unary_op>(ast::unary_op_kind::i32tofp32, std::move(lhs));
+        } else {
+          // error message should be output
+          assert(0);
+        }
+      }
       exp = std::make_unique<ast::Binary_op>(op, std::move(lhs), std::move(rhs));
     } else if (is_unary_operator(this->exp_operator)) {
       assert(false);

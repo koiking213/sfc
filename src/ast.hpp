@@ -4,8 +4,12 @@
 #include "llvm/IR/IRBuilder.h"
 
 namespace ast {
-  enum class operators {
-    add, sub, mul, div, leaf
+  enum class binary_op_kind {
+    add, sub, mul, div
+  };
+
+  enum class unary_op_kind {
+    i32tofp32
   };
 
   enum class Type_kind : int {
@@ -49,31 +53,34 @@ namespace ast {
 
   class Binary_op : public Expression {
   public:
-    Binary_op(operators op, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs) : exp_operator(op) {
+    Binary_op(binary_op_kind op, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs) : exp_operator(op) {
       this->lhs = std::move(lhs);
       this->rhs = std::move(rhs);
     }
-    void set_operator(enum operators op) {this->exp_operator = op;}
+    void set_operator(binary_op_kind op) {this->exp_operator = op;}
     void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
     void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
   private:
-    enum operators exp_operator;
+    binary_op_kind exp_operator;
     std::unique_ptr<Expression> lhs;
     std::unique_ptr<Expression> rhs;
   };
 
   class Unary_op : public Expression {
   public:
-    void set_operator(enum operators op) {this->exp_operator = op;}
+    Unary_op(unary_op_kind op, std::unique_ptr<Expression> elm) : exp_operator(op) {
+      this->operand = std::move(elm);
+    }
+    void set_operator(unary_op_kind op) {this->exp_operator = op;}
     void set_operand(std::unique_ptr<Expression> elm) {this->operand = std::move(elm);}
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
   private:
-    enum operators exp_operator;
+    unary_op_kind exp_operator;
     std::unique_ptr<Expression> operand;
   };
   

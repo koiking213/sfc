@@ -126,13 +126,17 @@ namespace ast {
     return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
   }
   llvm::Value *Unary_op::codegen() const {
+    switch (this->exp_operator) {
+    case unary_op_kind::i32tofp32:
+      return builder.CreateSIToFP(this->operand->codegen(), llvm::Type::getFloatTy(context), "i32tofp32cast");
+    }
     return nullptr;
   }
   llvm::Value *Binary_op::codegen() const {
     llvm::Value *lhs = this->lhs->codegen();
     llvm::Value *rhs = this->rhs->codegen();
     switch (this->exp_operator) {
-    case operators::add:
+    case binary_op_kind::add:
       if (this->get_type() == Type_kind::i32) {
         return builder.CreateAdd(lhs, rhs, "add_tmp");
       } else if (this->get_type() == Type_kind::fp32) {
@@ -140,7 +144,7 @@ namespace ast {
       } else {
         assert(0);
       }
-    case operators::sub:
+    case binary_op_kind::sub:
       if (this->get_type() == Type_kind::i32) {
         return builder.CreateSub(lhs, rhs, "sub_tmp");
       } else if (this->get_type() == Type_kind::fp32) {
@@ -148,7 +152,7 @@ namespace ast {
       } else {
         assert(0);
       }
-    case operators::mul:
+    case binary_op_kind::mul:
       if (this->get_type() == Type_kind::i32) {
         return builder.CreateMul(lhs, rhs, "mul_tmp");
       } else if (this->get_type() == Type_kind::fp32) {
@@ -156,7 +160,7 @@ namespace ast {
       } else {
         assert(0);
       }
-    case operators::div:
+    case binary_op_kind::div:
       if (this->get_type() == Type_kind::i32) {
         return builder.CreateSDiv(lhs, rhs, "div_tmp");
       } else if (this->get_type() == Type_kind::fp32) {
@@ -164,7 +168,6 @@ namespace ast {
       } else {
         assert(0);
       }
-    default:return nullptr;
     }
   }
 
