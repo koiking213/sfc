@@ -65,50 +65,64 @@ namespace cst {
   }
   std::unique_ptr<ast::Expression> Expression::ASTgen()
   {
-    std::unique_ptr<ast::Expression> exp;
-    if (is_binary_operator(this->exp_operator)) {
-      ast::binary_op_kind op;
-      if (this->exp_operator == "+") {
-        op = ast::binary_op_kind::add;
-      } else if (this->exp_operator == "-") {
-        op = ast::binary_op_kind::sub;
-      } else if (this->exp_operator == "*") {
-        op = ast::binary_op_kind::mul;
-      } else if (this->exp_operator == "/") {
-        op = ast::binary_op_kind::div;
-      } else if (this->exp_operator == "==") {
-        op = ast::binary_op_kind::eq;
-      } else if (this->exp_operator == "/=") {
-        op = ast::binary_op_kind::ne;
-      } else if (this->exp_operator == "<") {
-        op = ast::binary_op_kind::lt;
-      } else if (this->exp_operator == "<=") {
-        op = ast::binary_op_kind::le;
-      } else if (this->exp_operator == ">") {
-        op = ast::binary_op_kind::gt;
-      } else if (this->exp_operator == ">=") {
-        op = ast::binary_op_kind::ge;
-      }  else {
-        std::cout << "internal error: unknown operator" << std::endl;
-        assert(0);
-      }
-      std::unique_ptr<ast::Expression> lhs = this->operands[0]->ASTgen();
-      std::unique_ptr<ast::Expression> rhs = this->operands[1]->ASTgen();
-      if (lhs->get_type() != rhs->get_type()) {
-        // cast
-        if (lhs->get_type() == ast::Type_kind::fp32 &&
-            rhs->get_type() == ast::Type_kind::i32) {
-          rhs = std::make_unique<ast::Unary_op>(ast::unary_op_kind::i32tofp32, std::move(rhs));
-        } else if (lhs->get_type() == ast::Type_kind::i32 &&
-                   rhs->get_type() == ast::Type_kind::fp32) {
-          lhs = std::make_unique<ast::Unary_op>(ast::unary_op_kind::i32tofp32, std::move(lhs));
-        } else {
-          // error message should be output
+    std::unique_ptr<ast::Expression> exp = nullptr;
+    // for iでうまく行ったら以下で行く?
+    // auto &op = this->operators.rbegin();
+    // auto &operand = this->operand.rbegin();
+    // for (; op != this->operators.rend(); op++, operand++)
+    // そもそも再帰で書きたい
+    
+    if (is_binary_operator(this->operators[0])) {
+      for (int i=0; i<this->operators.size(); i++) {
+        ast::binary_op_kind op;
+        if (this->operators[i] == "+") {
+          op = ast::binary_op_kind::add;
+        } else if (this->operators[i] == "-") {
+          op = ast::binary_op_kind::sub;
+        } else if (this->operators[i] == "*") {
+          op = ast::binary_op_kind::mul;
+        } else if (this->operators[i] == "/") {
+          op = ast::binary_op_kind::div;
+        } else if (this->operators[i] == "==") {
+          op = ast::binary_op_kind::eq;
+        } else if (this->operators[i] == "/=") {
+          op = ast::binary_op_kind::ne;
+        } else if (this->operators[i] == "<") {
+          op = ast::binary_op_kind::lt;
+        } else if (this->operators[i] == "<=") {
+          op = ast::binary_op_kind::le;
+        } else if (this->operators[i] == ">") {
+          op = ast::binary_op_kind::gt;
+        } else if (this->operators[i] == ">=") {
+          op = ast::binary_op_kind::ge;
+        }  else {
+          std::cout << "internal error: unknown operator" << std::endl;
           assert(0);
         }
+        // 三項演算子で書き直せる？
+        std::unique_ptr<ast::Expression> lhs;
+        if (exp) {
+          lhs = std::move(exp);
+        } else {
+          lhs = this->operands[i]->ASTgen();
+        }
+        std::unique_ptr<ast::Expression> rhs = this->operands[i+1]->ASTgen();
+        if (lhs->get_type() != rhs->get_type()) {
+          // cast
+          if (lhs->get_type() == ast::Type_kind::fp32 &&
+              rhs->get_type() == ast::Type_kind::i32) {
+            rhs = std::make_unique<ast::Unary_op>(ast::unary_op_kind::i32tofp32, std::move(rhs));
+          } else if (lhs->get_type() == ast::Type_kind::i32 &&
+                     rhs->get_type() == ast::Type_kind::fp32) {
+            lhs = std::make_unique<ast::Unary_op>(ast::unary_op_kind::i32tofp32, std::move(lhs));
+          } else {
+            // error message should be output
+            assert(0);
+          }
+        }
+        exp = std::make_unique<ast::Binary_op>(op, std::move(lhs), std::move(rhs));
       }
-      exp = std::make_unique<ast::Binary_op>(op, std::move(lhs), std::move(rhs));
-    } else if (is_unary_operator(this->exp_operator)) {
+    } else if (is_unary_operator(this->operators[0])) {
       assert(false);
     } else {
       assert(false);

@@ -65,20 +65,18 @@ namespace cst {
     virtual ~Executable_construct() {};
   };
 
+  // TODO: operatorとexpressionを分離
   class Expression {
   public:
-    virtual void print(std::string indent);
+    virtual void print();
     void add_operand(std::unique_ptr<Expression> operand) {operands.push_back(std::move(operand));}
-    void set_operator(std::string str) {exp_operator = str;}
-    Expression(std::string op) : exp_operator(op) {};
-    Expression() : exp_operator("") {};
+    void add_operator(std::string str) {operators.push_back(str);}
+    int get_operator_count() const {return operators.size();}
     virtual std::unique_ptr<ast::Expression> ASTgen();
   private:
     std::vector<std::unique_ptr<Expression>> operands;
-    std::string exp_operator;
+    std::vector<std::string> operators;
   };
-
-
 
   class Print_statement : public Executable_construct {
   public:
@@ -104,7 +102,7 @@ namespace cst {
 
   class Variable : public Expression {
   public:
-    void print(std::string indent);
+    void print();
     Variable(std::string name) : name(name) {};
     std::unique_ptr<ast::Expression> ASTgen();
     std::unique_ptr<ast::Variable_definition> ASTgen_definition();
@@ -114,7 +112,7 @@ namespace cst {
 
   class Constant : public Expression {
   public:
-    void print(std::string indent);
+    void print();
     Constant(enum Type_kind kind, std::string name, std::string value) : type_kind(kind), type_name(name), value(value) {};
     std::unique_ptr<ast::Expression> ASTgen();
   private:
