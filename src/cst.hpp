@@ -89,6 +89,19 @@ namespace cst {
     std::vector<std::unique_ptr<Expression>> elements;
   };
 
+  class If_statement : public Executable_construct {
+  public:
+    If_statement(std::unique_ptr<Expression> expr, std::unique_ptr<Executable_construct> stmt) {
+      logical_expr = std::move(expr);
+      action_stmt = std::move(stmt);
+    }
+    void print(std::string indent);
+    std::unique_ptr<ast::Statement> ASTgen();
+  private:
+    std::unique_ptr<Executable_construct> action_stmt;
+    std::unique_ptr<Expression> logical_expr;
+  };
+
   class Variable : public Expression {
   public:
     void print(std::string indent);

@@ -178,6 +178,15 @@ namespace cst {
     }
     return static_unique_pointer_cast<ast::Statement>(std::move(ast_output_stmt));
   }
+
+  // if文とif構文の違いはASTで吸収する
+  std::unique_ptr<ast::Statement> If_statement::ASTgen()
+  {
+    std::unique_ptr<ast::If_construct> ast_if_construct {
+      new ast::If_construct(this->logical_expr->ASTgen()) };
+    ast_if_construct->add_then_stmt(this->action_stmt->ASTgen());
+    return static_unique_pointer_cast<ast::Statement>(std::move(ast_if_construct));
+  }
 }
 
 

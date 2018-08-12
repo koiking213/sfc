@@ -48,7 +48,7 @@ void cst::Expression::print(std::string indent)
   std::cout << "(" << this->exp_operator;
   for (auto &operand : this->operands) {
     std::cout << " ";
-    operand->print(indent);
+    operand->print(indent + "  ");
   }
   std::cout << ")";
 }
@@ -60,4 +60,11 @@ void cst::Print_statement::print(std::string indent)
   }
   std::cout << std::endl;
   
+}
+void cst::If_statement::print(std::string indent)
+{
+  std::cout << indent << "IF statement: " << "(";
+  logical_expr->print(indent + "  ");
+  std::cout << ")" << std::endl;
+  action_stmt->print(indent + "  ");
 }

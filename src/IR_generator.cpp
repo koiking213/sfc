@@ -259,6 +259,45 @@ namespace ast {
     }
   }
 
+  void Block::codegen() const
+  {
+    for (auto &stmt : this->statements) {
+      stmt->codegen();
+    }
+  }
+
+  void If_construct::codegen() const
+  {
+    llvm::Value *cond_val = this->condition_expression->codegen();
+
+    llvm::Function *func = builder.GetInsertBlock()->getParent();
+
+    // elseブロックが必要ないなら消す
+    llvm::BasicBlock *then_BB = llvm::BasicBlock::Create(context, "then", func);
+    llvm::BasicBlock *else_BB = llvm::BasicBlock::Create(context, "else");
+    llvm::BasicBlock *merge_BB = llvm::BasicBlock::Create(context, "ifcont");
+
+    // cond_valに応じてthen_BBとelse_BBに分岐する命令をifの前のブロックに挿入
+    builder.CreateCondBr(cond_val, then_BB, else_BB);
+
+    // then_BBをカレントブロックにする
+    builder.SetInsertPoint(then_BB);
+    // then_BBにthen_BBのIRを生成
+    this->then_block.codegen();
+    // then_BBからmerge_BBへのjumpを挿入
+    builder.CreateBr(merge_BB);
+
+    // else側
+    func->getBasicBlockList().push_back(else_BB);
+    builder.SetInsertPoint(else_BB);
+    this->else_block.codegen();
+    builder.CreateBr(merge_BB);
+
+    // 合流後
+    func->getBasicBlockList().push_back(merge_BB);
+    builder.SetInsertPoint(merge_BB);
+  }
+
   // only main program now
   void Program_unit::codegen() const
   {

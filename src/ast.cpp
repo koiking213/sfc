@@ -87,6 +87,17 @@ namespace ast {
       std::cout << ", ";
     }
   }
+  void If_construct::print(std::string indent) const
+  {
+    std::cout << indent << "If construct:" << std::endl;
+    std::cout << indent + "  " << "condition: ";
+    this->condition_expression->print();
+    std::cout << std::endl;
+    std::cout << indent + "  " << "statements in then block:" << std::endl;
+    this->then_block.print(indent + "  ");
+    std::cout << indent + "  " << "statements in else block:" << std::endl;
+    this->else_block.print(indent + "  ");
+  }
   void Program_unit::print(std::string indent) const
   {
     std::cout << indent << "ProgramUnit:" << this->name << std::endl;
@@ -119,6 +130,12 @@ namespace ast {
   void Type::print() const
   {
     std::cout << type_to_string(this->type_kind);
+  }
+  void Block::print(std::string indent) const
+  {
+    for (auto &stmt : this->statements) {
+      stmt->print(indent + "  ");
+    }
   }
 
   enum Type_kind Unary_op::get_type() const

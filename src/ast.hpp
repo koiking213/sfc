@@ -175,6 +175,38 @@ namespace ast {
     std::vector<std::unique_ptr<Expression>> elements;
   };
 
+  class Construct : public Statement {
+    // is there some feature all construct have?
+  public:
+    virtual void print(std::string indent) const = 0;
+  };
+
+  class Block {
+  public:
+    void add_statement(std::unique_ptr<Statement> stmt) {statements.push_back(std::move(stmt));}
+    void print (std::string indent) const;
+    void codegen() const;
+  private:
+    std::vector<std::unique_ptr<Statement>> statements;
+
+  };
+
+  // TODO: else
+  class If_construct : public Construct {
+  public:
+    If_construct(std::unique_ptr<Expression> expr) {
+      condition_expression = std::move(expr);
+    }
+    void print(std::string indent) const;
+    void codegen() const;
+    void add_then_stmt(std::unique_ptr<Statement> stmt) {then_block.add_statement(std::move(stmt));};
+    void add_else_stmt(std::unique_ptr<Statement> stmt) {else_block.add_statement(std::move(stmt));};
+  private:
+    std::unique_ptr<Expression> condition_expression;
+    Block then_block;
+    Block else_block;
+  };
+
   class Program_unit {
   public:
     void print(std::string indent) const;

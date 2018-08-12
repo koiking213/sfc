@@ -16,6 +16,8 @@ namespace parser{
     name,
     character
   };
+  // prototype declarations for recursive constructs
+  std::unique_ptr<Executable_construct> parse_action_stmt();
   std::unique_ptr<Expression> parse_expression();
   // TODO: multiple Program Unit
   // TODO: fixed form
@@ -337,25 +339,34 @@ namespace parser{
   std::unique_ptr<Print_statement> parse_print_stmt()
   {
     std::unique_ptr<Print_statement> print_stmt { new Print_statement() };
-    // "print" is already read
-    read_token("*");
-    read_token(",");
+    if (!read_token("print")) return nullptr;
+    if (!read_token("*")) return nullptr;
+    if (!read_token(",")) return nullptr;
     print_stmt->add_element(parse_expression());
     while (read_token(",")) {
       print_stmt->add_element(parse_expression());
     }
     return std::move(print_stmt);
   }
+  std::unique_ptr<If_statement> parse_if_stmt()
+  {
+    if (!read_token("if")) return nullptr;
+    if (!read_token("(")) return nullptr;
+    std::unique_ptr<Expression> expr = parse_expression();
+    if (!read_token(")")) {
+      error("\")\" is expected in IF statement", err_kind::character);
+    }
+    std::unique_ptr<Executable_construct> action_stmt = parse_action_stmt();
+    return std::make_unique<If_statement>(std::move(expr), std::move(action_stmt));
+  }
   std::unique_ptr<Executable_construct> parse_action_stmt()
   {
     skip_blank_lines();
-    std::unique_ptr<Executable_construct> exec = parse_assignment_stmt();
-    if (exec) {
-      return exec;
-    }
-    if (read_token("print")) {
-      return parse_print_stmt();
-    }
+    std::unique_ptr<Executable_construct> exec;
+    if ((exec = parse_assignment_stmt())) return std::move(exec);
+    if ((exec = parse_print_stmt())) return std::move(exec);
+    // TODO: if文かif構文かこれだけではわからないはず
+    if ((exec = parse_if_stmt())) return std::move(exec);
     return nullptr;
   }
   std::unique_ptr<Executable_construct> parse_executable_constructs()
