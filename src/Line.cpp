@@ -101,7 +101,7 @@ bool Line::read_operator(const std::string op)
   skip_blanks();
   if (std::equal(op.begin(), op.end(), content.begin()+column)) {
     char c = content[column+op.size()];
-    if (isalpha(c) || isdigit(c)) {
+    if (isalpha(c) || isdigit(c) || c=='(') {
       column += op.size();
       return true;
     }
