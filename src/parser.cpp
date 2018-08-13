@@ -19,6 +19,7 @@ namespace parser{
   // prototype declarations for recursive constructs
   std::unique_ptr<Executable_construct> parse_action_stmt();
   std::unique_ptr<Expression> parse_expression();
+  std::unique_ptr<Executable_construct> parse_executable_constructs();
   // TODO: multiple Program Unit
   // TODO: fixed form
   // TODO: continuous line
@@ -393,9 +394,102 @@ namespace parser{
     if ((exec = parse_if_stmt())) return std::move(exec);
     return nullptr;
   }
+  std::unique_ptr<Do_construct> parse_do_stmt()
+  {
+    // nonlabel-do-stmt is [ do-construct-name : ] DO [ loop-control ]
+    save_ofs();
+    std::string token_or_name = read_name();
+    std::string do_construct_name = "";
+    std::string do_variable_name;
+    std::unique_ptr<Expression> start_expr;
+    std::unique_ptr<Expression> end_expr;
+    std::unique_ptr<Expression> stride_expr;
+      
+    // fixed-formを考えるとdoキーワードをread_nameで読めない
+
+    if (token_or_name == "") goto parse_fail;
+    
+    // "do"を読み込んだ場合、labelの可能性とそうでない可能性がある
+    if (read_token(":")) {
+      // do-construct-name :  DO [ loop-control ]
+      do_construct_name = token_or_name;
+      if (!read_token("do")) goto parse_fail;
+      
+    } else {
+      // DO [ loop-control ]
+      restore_ofs();
+      save_ofs();
+      if (!read_token("do")) goto parse_fail;
+    }
+    
+    // TODO: loop-controlの省略を受け付ける
+    // loop-control is [ , ] do-variable = scalar-int-expr, scalar-int-expr [ , scalar-int-expr ]
+    // while, concurrentを実装時はそっちを先にparseする
+    // このあたりでパースに失敗したとき、エラーにするか他の文の解析に回すかどっち?
+    read_token(",");
+    do_variable_name = read_name();
+    read_token("=");
+    start_expr = parse_expression();
+    read_token(",");
+    end_expr = parse_expression();
+    stride_expr = nullptr;
+    if (read_token(",")) {
+      stride_expr = parse_expression();
+    }
+    if (!assert_end_of_line()) goto parse_fail;
+    discard_saved_ofs();
+    return std::make_unique<Do_with_do_variable>(do_construct_name,
+                                                 std::make_unique<Variable>(do_variable_name),
+                                                 std::move(start_expr),
+                                                 std::move(end_expr),
+                                                 std::move(stride_expr));
+  parse_fail:
+    restore_ofs();
+    return nullptr;
+  }
+  std::unique_ptr<Block> parse_block()
+  {
+    std::unique_ptr<Block> block { new Block() };
+    std::unique_ptr<Executable_construct> exec;
+    while ((exec = parse_executable_constructs())) {
+      block->add_construct(std::move(exec));
+    }
+    return std::move(block);
+  }
+  bool parse_end_do_stmt(std::string name)
+  {
+    if (!read_token("end")) {
+      error("END DO statement is expected", err_kind::end_of_line);
+      goto errexit;
+    }
+    if (!read_one_blank()) goto errexit;
+    if (!read_token("do")) {
+      error("END DO statement is expected", err_kind::end_of_line);
+      goto errexit;
+    }
+    if (is_end_of_line()) return true;
+    if (!read_token(name)) error("name is different from the corresponding do-stmt", err_kind::name);
+    if (!assert_end_of_line()) goto errexit;
+    return true;
+
+  errexit:
+    skip_this_line();
+    return false;
+  }
+  std::unique_ptr<Executable_construct> parse_do_construct()
+  {
+    std::unique_ptr<Do_construct> do_construct = parse_do_stmt();
+    if (!do_construct) return nullptr;
+    do_construct->set_block(parse_block());
+    parse_end_do_stmt(do_construct->get_construct_name());
+    return std::move(do_construct);
+  }
   std::unique_ptr<Executable_construct> parse_executable_constructs()
   {
-    return parse_action_stmt();
+    std::unique_ptr<Executable_construct> exec;
+    if ((exec = parse_action_stmt())) return std::move(exec);
+    if ((exec = parse_do_construct())) return std::move(exec);
+    return nullptr;
   }
   std::unique_ptr<Program> parse_main_program()
   {

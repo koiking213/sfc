@@ -18,6 +18,18 @@ namespace ast {
       return "*";
     case binary_op_kind::div:
       return "/";
+    case binary_op_kind::eq:
+      return "==";
+    case binary_op_kind::ne:
+      return "!=";
+    case binary_op_kind::lt:
+      return "<";
+    case binary_op_kind::le:
+      return "<=";
+    case binary_op_kind::gt:
+      return ">";
+    case binary_op_kind::ge:
+      return ">=";
     }
   }
   std::string type_to_string(const enum Type_kind kind)
@@ -97,6 +109,25 @@ namespace ast {
     this->then_block.print(indent + "  ");
     std::cout << indent + "  " << "statements in else block:" << std::endl;
     this->else_block.print(indent + "  ");
+  }
+  void Do_construct::print(std::string indent) const
+  {
+    std::cout << indent << "Do construct:" << std::endl;
+    std::cout << indent + "  " << "initial_expr:";
+    this->initial_expr->print(indent);
+    std::cout << std::endl;
+    if (this->increment_expr) {
+      std::cout << indent + "  " << "increment_expr:";
+      this->increment_expr->print(indent);
+      std::cout << std::endl;
+    }
+    if (this->condition_expr) {
+      std::cout << indent + "  " << "condition_expr:";
+      this->condition_expr->print();
+      std::cout << std::endl;
+    }
+    std::cout << indent + "  " << "block:" << std::endl;
+    this->block->print(indent);
   }
   void Program_unit::print(std::string indent) const
   {

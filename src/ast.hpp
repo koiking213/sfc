@@ -191,7 +191,27 @@ namespace ast {
 
   };
 
-  // TODO: else
+  class Do_construct : public Construct {
+  public:
+    void print(std::string indent) const;
+    void codegen() const;
+    void add_statement(std::unique_ptr<Statement> stmt) {block->add_statement(std::move(stmt));}
+    Do_construct(std::unique_ptr<Assignment_statement> initial_expr,
+                 std::unique_ptr<Assignment_statement> increment_expr,
+                 std::unique_ptr<Expression> condition_expr,
+                 std::unique_ptr<Block> block) {
+      this->initial_expr = std::move(initial_expr);
+      this->increment_expr = std::move(increment_expr);
+      this->condition_expr = std::move(condition_expr);
+      this->block = std::move(block);
+    }
+  private:
+    std::unique_ptr<Block> block;
+    std::unique_ptr<Assignment_statement> initial_expr;
+    std::unique_ptr<Assignment_statement> increment_expr;
+    std::unique_ptr<Expression> condition_expr;
+  };
+
   class If_construct : public Construct {
   public:
     If_construct(std::unique_ptr<Expression> expr) {
@@ -203,8 +223,8 @@ namespace ast {
     void add_else_stmt(std::unique_ptr<Statement> stmt) {else_block.add_statement(std::move(stmt));};
   private:
     std::unique_ptr<Expression> condition_expression;
-    Block then_block;
-    Block else_block;
+    Block then_block; // TODO: std::unique_ptrにする
+    Block else_block; // TODO: std::unique_ptrにする
   };
 
   class Program_unit {

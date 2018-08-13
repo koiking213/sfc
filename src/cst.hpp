@@ -100,6 +100,18 @@ namespace cst {
     std::unique_ptr<Expression> logical_expr;
   };
 
+  class Block {
+  public:
+    void print(std::string indent);
+    void add_construct(std::unique_ptr<Executable_construct> construct) {
+      execution_part_constructs.push_back(std::move(construct));
+    }
+    std::unique_ptr<ast::Block> ASTgen();
+  private:
+    std::vector<std::unique_ptr<Executable_construct>> execution_part_constructs;
+  };
+
+
   class Variable : public Expression {
   public:
     void print();
@@ -119,6 +131,40 @@ namespace cst {
     enum Type_kind type_kind;
     std::string type_name;
     std::string value;
+  };
+
+  
+  class Do_construct : public Executable_construct {
+  public:
+    Do_construct(std::string name) : construct_name(name) {}
+    virtual void print(std::string indent) = 0;
+    void set_block(std::unique_ptr<Block> block) {this->block = std::move(block);}
+    std::string get_construct_name() {return construct_name;}
+  protected:
+    std::string construct_name;
+    std::unique_ptr<Block> block;
+  };
+
+  class Do_with_do_variable : public Do_construct {
+  public:
+    Do_with_do_variable(std::string construct_name,
+                        std::unique_ptr<Variable> do_variable,
+                        std::unique_ptr<Expression> start_expr,
+                        std::unique_ptr<Expression> end_expr,
+                        std::unique_ptr<Expression> stride_expr) : Do_construct(construct_name)
+    {
+      this->do_variable = std::move(do_variable);
+      this->start_expr = std::move(start_expr);
+      this->end_expr = std::move(end_expr);
+      this->stride_expr = std::move(stride_expr);
+    }
+    void print(std::string indent);
+    std::unique_ptr<ast::Statement> ASTgen();
+  private:
+    std::unique_ptr<Variable> do_variable;
+    std::unique_ptr<Expression> start_expr;
+    std::unique_ptr<Expression> end_expr;
+    std::unique_ptr<Expression> stride_expr;
   };
 
   class Assignment_statement : public Executable_construct {

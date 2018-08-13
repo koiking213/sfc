@@ -11,7 +11,7 @@ namespace cst {
     return std::unique_ptr<TO>{static_cast<TO*>(old.release())};
     //conversion: unique_ptr<FROM>->FROM*->TO*->unique_ptr<TO>
   }
-  
+
   bool is_binary_operator(std::string op)
   {
     static std::set<std::string> binary_ops{"+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="};
@@ -129,13 +129,58 @@ namespace cst {
     }
     return std::move(exp);
   }
+
+  std::unique_ptr<ast::Statement> Do_with_do_variable::ASTgen()
+  {
+    // auto 使える？
+    std::unique_ptr<ast::Assignment_statement> initial_expr { new ast::Assignment_statement() };
+    {
+      initial_expr->set_lhs(std::move(this->do_variable->ASTgen_definition()));
+      initial_expr->set_rhs(std::move(this->start_expr->ASTgen()));
+    }
+    
+    std::unique_ptr<ast::Assignment_statement> increment_expr { new ast::Assignment_statement() };
+    {
+      std::unique_ptr<ast::Expression> increment_val;
+      if (this->stride_expr) {
+        increment_val = this->stride_expr->ASTgen();
+      } else {
+        increment_val = std::make_unique<ast::Int32_constant>(1);
+      }
+      std::unique_ptr<ast::Expression> increment_expr_rhs { new ast::Binary_op
+          (ast::binary_op_kind::add,
+           this->do_variable->ASTgen(),
+           std::move(increment_val)) };
+      increment_expr->set_lhs(this->do_variable->ASTgen_definition());
+      increment_expr->set_rhs(std::move(increment_expr_rhs));
+    }
+
+    std::unique_ptr<ast::Binary_op> condition_expr
+      = std::make_unique<ast::Binary_op>(ast::binary_op_kind::le,
+                                         this->do_variable->ASTgen(),
+                                         this->end_expr->ASTgen());
+
+    return std::make_unique<ast::Do_construct> (std::move(initial_expr),
+                                                std::move(increment_expr),
+                                                std::move(condition_expr),
+                                                this->block->ASTgen());
+  }
+
+  std::unique_ptr<ast::Block> Block::ASTgen()
+  {
+    std::unique_ptr<ast::Block> ast_block { new ast::Block() };
+    for (auto &construct : this->execution_part_constructs) {
+      ast_block->add_statement(construct->ASTgen());
+    }
+    return std::move(ast_block);
+  }
   
   std::unique_ptr<ast::Statement> Assignment_statement::ASTgen()
   {
     std::unique_ptr<ast::Assignment_statement> stmt { new ast::Assignment_statement() };
     stmt->set_lhs(this->lhs->ASTgen_definition());
     stmt->set_rhs(this->rhs->ASTgen());
-    return static_unique_pointer_cast<ast::Statement>(std::move(stmt));
+    return std::move(stmt);
   }
   
   std::shared_ptr<ast::Program_unit> Program::ASTgen()

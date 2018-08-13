@@ -272,7 +272,6 @@ namespace ast {
 
     llvm::Function *func = builder.GetInsertBlock()->getParent();
 
-    // elseブロックが必要ないなら消す
     llvm::BasicBlock *then_BB = llvm::BasicBlock::Create(context, "then", func);
     llvm::BasicBlock *else_BB = llvm::BasicBlock::Create(context, "else");
     llvm::BasicBlock *merge_BB = llvm::BasicBlock::Create(context, "ifcont");
@@ -296,6 +295,27 @@ namespace ast {
     // 合流後
     func->getBasicBlockList().push_back(merge_BB);
     builder.SetInsertPoint(merge_BB);
+  }
+
+  void Do_construct::codegen() const
+  {
+    this->initial_expr->codegen();
+
+    llvm::Function *func = builder.GetInsertBlock()->getParent();
+
+    llvm::BasicBlock *preheaderBB = builder.GetInsertBlock();
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(context, "loop", func);
+    builder.CreateBr(loopBB);
+
+    builder.SetInsertPoint(loopBB);
+    this->block->codegen();
+    this->increment_expr->codegen();
+    llvm::Value *cond = this->condition_expr->codegen();
+
+    llvm::BasicBlock *loop_end_BB = builder.GetInsertBlock();
+    llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(context, "after_loop", func);
+    builder.CreateCondBr(cond, loopBB, afterBB);
+    builder.SetInsertPoint(afterBB);
   }
 
   // only main program now
