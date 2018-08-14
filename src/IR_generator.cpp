@@ -135,6 +135,12 @@ namespace ast {
   llvm::Value *Variable_reference::codegen() const {
     return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
   }
+  llvm::Value *Array_element_reference::codegen() const {
+    llvm::Value *val = builder.CreateGEP(variable_table[this->get_var_name()],
+                                         builder.getInt32(this->get_subscript()),
+                                         "array_element_ref");
+    return builder.CreateLoad(val, "elm_load_tmp");
+  }
   llvm::Value *Unary_op::codegen() const {
     switch (this->exp_operator) {
     case unary_op_kind::i32tofp32:
@@ -230,7 +236,13 @@ namespace ast {
   }
 
   llvm::Value *Variable_definition::codegen() const {
-    return variable_table[this->name];
+    return variable_table[this->get_var_name()];
+  }
+
+  llvm::Value *Array_element_definition::codegen() const {
+    return builder.CreateGEP(variable_table[this->get_var_name()],
+                      builder.getInt32(this->get_subscript()),
+                      "array_element_def");
   }
 
   void Assignment_statement::codegen() const
@@ -348,11 +360,16 @@ namespace ast {
   void Variable::codegen() const
   {
     // is just "context" ok for llvm::Type::getInt32Ty(context)?
+    llvm::Value *size = nullptr;
+    if (this->shape) {
+      size = builder.getInt32(this->shape->get_size());
+    }
+    
     llvm::Value *value;
     if (this->get_type_kind() == Type_kind::i32) {
-      value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), 0, this->name);
+      value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), size, this->name);
     } else if (this->get_type_kind() == Type_kind::fp32) {
-      value = builder.CreateAlloca(llvm::Type::getFloatTy(context), 0, this->name);
+      value = builder.CreateAlloca(llvm::Type::getFloatTy(context), size, this->name);
     }
     variable_table[this->name] = value;
   }

@@ -14,6 +14,34 @@ namespace cst {
     }
   }
 
+  void Explicit_shape_spec::print()
+  {
+    std::cout << "kind=explicit, ";
+    for (int i=0; i<this->lower_bounds.size(); i++) {
+      std::cout << "[";
+      lower_bounds[i]->print();
+      std::cout << ",";
+      upper_bounds[i]->print();
+      std::cout << "]";
+    }
+  }
+
+  void Dimension_spec::print(std::string indent)
+  {
+    std::cout << indent << "dimension spec:" << std::endl;
+    std::cout << indent + "  " << this->array_name << "(";
+    this->array_spec->print();
+    std::cout << ")" << std::endl;
+  }
+
+  void Dimension_statement::print(std::string indent)
+  {
+    std::cout << indent << "dimension statement:" << std::endl;
+    for (auto& spec : this->specs) {
+      spec->print(indent + "  ");
+    }
+  }
+
   void Type_specification::print(std::string indent)
   {
     std::cout << indent;
@@ -28,17 +56,24 @@ namespace cst {
 
   void Assignment_statement::print(std::string indent)
   {
-    std::cout << indent << "lhs: ";
+    std::cout << indent << "assignment statement:" << std::endl;
+    std::cout << indent + "  " << "lhs: ";
     this->lhs->print();
     std::cout << std::endl;
 
-    std::cout << indent << "rhs: ";
+    std::cout << indent + "  " << "rhs: ";
     this->rhs->print();
     std::cout << std::endl;
   }
   void Variable::print()
   {
     std::cout << this->name;
+  }
+  void Array_element::print()
+  {
+    std::cout << this->name << "(";
+    this->subscript->print();
+    std::cout << ")";
   }
   void Constant::print()
   {
@@ -52,7 +87,7 @@ namespace cst {
       this->operands[i]->print();
       std::cout << this->operators[i];
     }
-    (*(this->operands.end()))->print();
+    this->operands[this->operands.size()-1]->print();
     std::cout << ")";
   }
   void Print_statement::print(std::string indent)

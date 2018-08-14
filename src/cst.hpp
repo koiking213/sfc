@@ -5,7 +5,22 @@
 #include "ast.hpp"
 
 namespace cst {
-    enum class Type_kind : int {
+
+  
+  // TODO: operatorとexpressionを分離
+  class Expression {
+  public:
+    virtual void print();
+    void add_operand(std::unique_ptr<Expression> operand) {operands.push_back(std::move(operand));}
+    void add_operator(std::string str) {operators.push_back(str);}
+    int get_operator_count() const {return operators.size();}
+    virtual std::unique_ptr<ast::Expression> ASTgen();
+  private:
+    std::vector<std::unique_ptr<Expression>> operands;
+    std::vector<std::string> operators;
+  };
+  
+  enum class Type_kind : int {
     Intrinsic,
     derived_type,
     polymorphic,
@@ -33,6 +48,47 @@ namespace cst {
     virtual void print(std::string indent) = 0;
     virtual void ASTgen(std::shared_ptr<ast::Program_unit> program) = 0;
     virtual ~Specification() {};
+  };
+
+  class Array_spec {
+  public:
+    virtual void print() = 0;
+    virtual std::unique_ptr<ast::Shape> ASTgen() = 0;
+  };
+
+  class Explicit_shape_spec : public Array_spec {
+  public:
+    void add_spec(std::unique_ptr<Expression> lower, std::unique_ptr<Expression> upper) {
+      this->lower_bounds.push_back(std::move(lower));
+      this->upper_bounds.push_back(std::move(upper));
+    }
+    std::unique_ptr<ast::Shape> ASTgen();
+    void print();
+  private:
+    std::vector<std::unique_ptr<Expression>> lower_bounds;
+    std::vector<std::unique_ptr<Expression>> upper_bounds;
+  };
+
+  class Dimension_spec {
+  public:
+    Dimension_spec(std::string array_name, std::unique_ptr<Array_spec> array_spec) : array_name(array_name) {
+      this->array_spec = std::move(array_spec);
+    }
+    void print(std::string indent);
+    std::string get_array_name() {return array_name;}
+    std::unique_ptr<ast::Shape> ASTgen() {return array_spec->ASTgen();};
+  private:
+    std::string array_name;
+    std::unique_ptr<Array_spec> array_spec;
+  };
+
+  class Dimension_statement : public Specification {
+  public:
+    void print(std::string indent);
+    void ASTgen(std::shared_ptr<ast::Program_unit> program);
+    void add_spec(std::unique_ptr<Dimension_spec> spec) {this->specs.push_back(std::move(spec));}
+  private:
+    std::vector<std::unique_ptr<Dimension_spec>> specs;
   };
 
   class Type_specification : public Specification {
@@ -65,18 +121,6 @@ namespace cst {
     virtual ~Executable_construct() {};
   };
 
-  // TODO: operatorとexpressionを分離
-  class Expression {
-  public:
-    virtual void print();
-    void add_operand(std::unique_ptr<Expression> operand) {operands.push_back(std::move(operand));}
-    void add_operator(std::string str) {operators.push_back(str);}
-    int get_operator_count() const {return operators.size();}
-    virtual std::unique_ptr<ast::Expression> ASTgen();
-  private:
-    std::vector<std::unique_ptr<Expression>> operands;
-    std::vector<std::string> operators;
-  };
 
   class Print_statement : public Executable_construct {
   public:
@@ -114,12 +158,24 @@ namespace cst {
 
   class Variable : public Expression {
   public:
-    void print();
     Variable(std::string name) : name(name) {};
+    virtual void print();
+    virtual std::unique_ptr<ast::Expression> ASTgen();
+    virtual std::unique_ptr<ast::Variable_definition> ASTgen_definition();
+  protected:
+    std::string name;
+  };
+
+  class Array_element : public Variable {
+  public:
+    Array_element(std::string name, std::unique_ptr<Expression> subscript) : Variable(name) {
+      this->subscript = std::move(subscript);
+    }
+    void print();
     std::unique_ptr<ast::Expression> ASTgen();
     std::unique_ptr<ast::Variable_definition> ASTgen_definition();
   private:
-    std::string name;
+    std::unique_ptr<Expression> subscript;
   };
 
   class Constant : public Expression {

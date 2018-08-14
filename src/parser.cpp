@@ -229,24 +229,137 @@ namespace parser{
     } while (read_token(","));
     return std::move(spec);
   }
+
+  std::unique_ptr<Explicit_shape_spec> parse_explicit_shape_spec()
+  {
+    save_ofs();
+    std::unique_ptr<Explicit_shape_spec> spec_list { new Explicit_shape_spec() };
+    std::unique_ptr<Expression> lower_or_upper_bound;
+    std::unique_ptr<Expression> upper_bound;
+    while (true) {
+      if (!(lower_or_upper_bound = parse_expression())) goto failexit;
+      if (read_token(":")) {
+        if (!(upper_bound = parse_expression())) goto failexit;
+        spec_list->add_spec(std::move(lower_or_upper_bound),
+                            std::move(upper_bound));
+      } else {
+        auto constant = std::make_unique<Constant>(Type_kind::Intrinsic, "integer", "1");
+        spec_list->add_spec(std::move(constant),
+                            std::move(lower_or_upper_bound));
+      }
+      if (!read_token(",")) break;
+    }
+    discard_saved_ofs();
+    return std::move(spec_list);
+  failexit:
+    restore_ofs();
+    return nullptr;
+  }
+
+  std::unique_ptr<Array_spec> parse_array_spec()
+  {
+    std::unique_ptr<Array_spec> spec;
+    if ((spec = parse_explicit_shape_spec())) return std::move(spec);
+    return nullptr;
+  }
+
+  std::unique_ptr<Specification> parse_dimension_stmt()
+  {
+    save_ofs();
+    std::unique_ptr<Dimension_statement> dimension_stmt { new Dimension_statement() };
+    if (!read_token("dimension")) goto failexit;
+    read_token("::");
+    while (true) {
+      std::string name = read_name();
+      read_token("(");
+      std::unique_ptr<Array_spec> spec = parse_array_spec();
+      read_token(")");
+      dimension_stmt->add_spec(std::make_unique<Dimension_spec>(name, std::move(spec)));
+      if (!read_token(",")) break;
+    }
+    if (!assert_end_of_line()) goto errexit;
+    discard_saved_ofs();
+    return std::move(dimension_stmt);
+
+  failexit:
+    restore_ofs();
+    return nullptr;
+
+  errexit:
+    discard_saved_ofs();
+    return nullptr;
+  }
+
+  std::unique_ptr<Specification> parse_other_specification_stmt()
+  {
+    std::unique_ptr<Specification> spec;
+    if ((spec = parse_dimension_stmt())) return std::move(spec);
+    return nullptr;
+  }
   
   std::unique_ptr<Specification> parse_declaration_construct()
   {
-    return parse_type_declaration();
+    std::unique_ptr<Specification> spec;
+    if ((spec = parse_type_declaration())) return std::move(spec);
+    if ((spec = parse_other_specification_stmt())) return std::move(spec);
+    return nullptr;
+  }
+
+  std::unique_ptr<Expression> parse_section_subscript()
+  {
+    // only subscript for now
+    return parse_expression(); // std:moveが必要？
+  }
+
+  std::unique_ptr<Array_element> parse_data_ref()
+  {
+    // same as part_ref for now
+    save_ofs();
+    std::string name = read_name();
+    std::unique_ptr<Expression> subscript;
+
+    if (name == "") goto failexit;
+    if (!read_token("(")) goto failexit;
+    subscript = parse_section_subscript();
+    if (!subscript) goto failexit;
+    if (!read_token(")")) goto failexit;
+
+    discard_saved_ofs();
+    // 以下は単にreturnするだけではダメ？
+    return std::move(std::make_unique<Array_element>(name, std::move(subscript)));
+  failexit:
+    restore_ofs();
+    return nullptr;
+  }
+
+  std::unique_ptr<Variable> parse_designator()
+  {
+    std::unique_ptr<Variable> designator;
+    if ((designator = parse_data_ref())) {
+      return std::move(designator);
+    }
+
+    // object-name
+    std::string name = read_name();
+    if (name != "") {
+      return std::move(std::make_unique<Variable>(name));
+    }
+    return nullptr;
   }
 
   // mult-operand is level-1-expr [ power-op mult-operand ]
   // for now, level-1-expr := name | constant | (expression)
   std::unique_ptr<Expression> parse_mult_operand()
   {
-    std::string name = read_name();
-    if (name != "") {
-      return static_cast<std::unique_ptr<Expression>>(new Variable(name));
-    }
+    std::unique_ptr<Expression> exp;
+    if ((exp = parse_designator())) return std::move(exp);
+
+    // literal-constant
     std::unique_ptr<Constant> value = read_constant();
     if (value != nullptr) {
       return static_cast<std::unique_ptr<Expression>>(std::move(value));
-    }
+    } // TODO: static_castなしでexpに代入してreturnできないか
+    
     if (read_token("(")) {
       std::unique_ptr<Expression> exp = parse_expression();
       read_token(")");
@@ -350,12 +463,11 @@ namespace parser{
     save_ofs();
     std::unique_ptr<Assignment_statement> assignment_stmt {new Assignment_statement()};
     // only variable is acceptable as a left side of assignment statement
-    std::string name = read_name();
-    if (!read_token("=")) {
+    std::unique_ptr<Variable> var = parse_designator();
+    if (!var || !read_token("=")) {
       restore_ofs();
       return nullptr;
     }
-    std::unique_ptr<Variable> var { new Variable(name) };
     assignment_stmt->set_lhs(std::move(var));
     assignment_stmt->set_rhs(parse_expression());
     discard_saved_ofs();

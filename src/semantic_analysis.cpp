@@ -12,6 +12,15 @@ namespace cst {
     //conversion: unique_ptr<FROM>->FROM*->TO*->unique_ptr<TO>
   }
 
+  std::shared_ptr<ast::Variable> get_or_create_var(std::string name) {
+    std::shared_ptr<ast::Variable> var = (*current_variable_table)[name];
+    if (!var) {
+      var = std::make_shared<ast::Variable>(name);
+      (*current_variable_table)[name] = var;
+    }
+    return var;
+  }
+  
   bool is_binary_operator(std::string op)
   {
     static std::set<std::string> binary_ops{"+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="};
@@ -23,18 +32,26 @@ namespace cst {
   }
   std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition()
   {
-    std::unique_ptr<ast::Variable_definition> var { new ast::Variable_definition(this->name) };
-    return var;
+    std::unique_ptr<ast::Variable_definition> var { new ast::Variable_definition(get_or_create_var(this->name)) };
+    return var; // ひょっとしてstd::moveしなくていい？
+  }
+  std::unique_ptr<ast::Variable_definition> Array_element::ASTgen_definition()
+  {
+    auto elm_def = std::make_unique<ast::Array_element_definition>(get_or_create_var(this->name),
+                                                                   this->subscript->ASTgen()->eval_constant_value());
+    return static_unique_pointer_cast<ast::Variable_definition>(std::move(elm_def));
   }
   std::unique_ptr<ast::Expression> Variable::ASTgen()
   {
-    std::shared_ptr<ast::Variable> var = (*current_variable_table)[this->name];
-    if (!var) {
-      var = std::make_shared<ast::Variable>(this->name);
-      (*current_variable_table)[this->name] = var;
-    }
+    std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
     std::unique_ptr<ast::Variable_reference> var_ref { new ast::Variable_reference(var) };
     return static_unique_pointer_cast<ast::Expression>(std::move(var_ref));
+  }
+  std::unique_ptr<ast::Expression> Array_element::ASTgen()
+  {
+    std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
+    auto elm_ref = std::make_unique<ast::Array_element_reference>(var, this->subscript->ASTgen()->eval_constant_value());
+    return static_unique_pointer_cast<ast::Expression>(std::move(elm_ref));
   }
   std::unique_ptr<ast::Expression> Constant::ASTgen()
   {
@@ -215,16 +232,32 @@ namespace cst {
     (*current_type_table)[type_name] = result;
     return result;
   }
+
+  std::unique_ptr<ast::Shape> Explicit_shape_spec::ASTgen()
+  {
+    std::unique_ptr<ast::Shape> shape { new ast::Shape() };
+    for (int i=0; i<this->lower_bounds.size(); i++) {
+      std::unique_ptr<ast::Expression> upper = upper_bounds[i]->ASTgen();
+      std::unique_ptr<ast::Expression> lower = lower_bounds[i]->ASTgen();
+      shape->add_dimension(lower->eval_constant_value(),
+                           upper->eval_constant_value());
+    }
+    return std::move(shape);
+  }
+
+  void Dimension_statement::ASTgen(std::shared_ptr<ast::Program_unit> program)
+  {
+    for (auto& spec : this->specs) {
+      std::shared_ptr<ast::Variable> var = get_or_create_var(spec->get_array_name());
+      var->set_shape(std::move(spec->ASTgen()));
+    }
+  }
   
   void Type_specification::ASTgen(std::shared_ptr<ast::Program_unit> program)
   {
     std::shared_ptr<ast::Type> type = get_or_create_type(this->type_kind, this->type_name);
     for (std::string name : this->variables) {
-      std::shared_ptr<ast::Variable> var = (*current_variable_table)[name];
-      if (!var) {
-        var = std::make_shared<ast::Variable>(name);
-        (*current_variable_table)[name] = var;
-      }
+      std::shared_ptr<ast::Variable> var = get_or_create_var(name);
       var->set_type(type);
     }
   }

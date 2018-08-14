@@ -80,7 +80,15 @@ namespace ast {
   }
   void Variable_definition::print() const
   {
-    std::cout << name;
+    std::cout << this->get_var_name();
+  }
+  void Array_element_reference::print() const
+  {
+    std::cout << this->var->get_name() << "(" << this->subscript << ")";
+  }
+  void Array_element_definition::print() const
+  {
+    std::cout << this->var->get_name() << "(" << this->subscript << ")";
   }
   void Assignment_statement::print(std::string indent) const
   {
@@ -156,7 +164,14 @@ namespace ast {
     std::cout << indent << "name: " << this->name;
     std::cout << ", type: ";
     this->type->print(); // TODO: <<演算子の実装
-    std::cout << ", size: " << this->element_num;
+    std::cout << ", shape: ";
+    this->shape->print();
+  }
+  void Shape::print() const
+  {
+    for (int i=0; i<this->lower_bounds.size(); i++) {
+      std::cout << this->lower_bounds[i] << ":" << this->upper_bounds[i] << " ";
+    }
   }
   void Type::print() const
   {
@@ -192,5 +207,30 @@ namespace ast {
     enum Type_kind r = rhs->get_type();
     if (l==r) return l;
     assert(0);
+  }
+  int Binary_op::eval_constant_value() const
+  {
+    int lval = this->lhs->eval_constant_value();
+    int rval = this->rhs->eval_constant_value();
+    switch (this->exp_operator) {
+    case binary_op_kind::add:
+      return lval + rval;
+    case binary_op_kind::sub:
+      return lval - rval;
+    case binary_op_kind::mul:
+      return lval * rval;
+    case binary_op_kind::div:
+      return lval / rval;
+    default:
+      assert(0);
+    }
+  }
+  int Shape::get_size() const
+  {
+    int sum=1;
+    for (int i=0; i<this->lower_bounds.size(); i++) {
+      sum = sum * this->get_size(i);
+    }
+    return sum;
   }
 }

@@ -31,6 +31,20 @@ namespace ast {
     enum Type_kind type_kind;
   };
 
+  class Shape {
+  public:
+    int get_size(int index) const {return upper_bounds[index] - lower_bounds[index] + 1;}
+    int get_size() const;
+    void add_dimension(int lower, int upper) {
+      lower_bounds.push_back(lower);
+      upper_bounds.push_back(upper);
+    }
+    void print() const;
+  private:
+    std::vector<int> lower_bounds;
+    std::vector<int> upper_bounds;
+  };
+
   class Variable {
   public:
     Variable(std::string name) : name(name) {}
@@ -39,14 +53,16 @@ namespace ast {
     std::string get_name() const {return name;}
     Type_kind get_type_kind() const {return type->get_type_kind();}
     void set_type(std::shared_ptr<Type> type){this->type = type;}
+    void set_shape(std::unique_ptr<Shape> shape) {this->shape = std::move(shape);}
   private:
     std::string name;
     std::shared_ptr<Type> type;
-    int64_t element_num=0;
+    std::unique_ptr<Shape> shape;
   };
-  
+
   class Expression {
   public:
+    virtual int eval_constant_value() const = 0;
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
     virtual enum Type_kind get_type() const = 0;
@@ -64,6 +80,7 @@ namespace ast {
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
+    int eval_constant_value() const;
   private:
     binary_op_kind exp_operator;
     std::unique_ptr<Expression> lhs;
@@ -80,6 +97,7 @@ namespace ast {
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
+    int eval_constant_value() const {assert(0);};
   private:
     unary_op_kind exp_operator;
     std::unique_ptr<Expression> operand;
@@ -90,6 +108,7 @@ namespace ast {
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
     virtual Type_kind get_type() const = 0;
+    virtual int eval_constant_value() const = 0;
   private:
     enum Type_kind type_kind;
   };
@@ -101,6 +120,7 @@ namespace ast {
     llvm::Value *codegen() const;
     int32_t get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::i32;};
+    int eval_constant_value() const {return value;};
   private:
     int32_t value;
   };
@@ -112,6 +132,7 @@ namespace ast {
     llvm::Value *codegen() const;
     float get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::fp32;};
+    int eval_constant_value() const {return (int)value;};
   private:
     float value;
   };
@@ -124,28 +145,51 @@ namespace ast {
     bool get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::logical;}
     int get_int_value() const {return 1 ? value : 0;}
+    int eval_constant_value() const {return (int)value;};
   private:
     bool value;
   };
 
   class Variable_reference : public Expression {
   public:
-    void print() const;
-    llvm::Value *codegen() const;
+    virtual void print() const;
+    virtual llvm::Value *codegen() const;
     Variable_reference(std::shared_ptr<Variable> var) {this->var = var;}
     Type_kind get_type() const {return var->get_type_kind();}
-  private:
+    int eval_constant_value() const {assert(0);};
+    std::string get_var_name() const {return var->get_name();}
+  protected:
     std::shared_ptr<Variable> var;
   };
 
-  class Variable_definition {
+  class Array_element_reference : public Variable_reference {
   public:
     void print() const;
     llvm::Value *codegen() const;
-    Variable_definition(std::string name) {this->name = name;}
+    Array_element_reference(std::shared_ptr<Variable> var, int subscript) : Variable_reference(var), subscript(subscript) {}
+    int get_subscript() const {return subscript;}
   private:
-    enum Type_kind type_kind;
-    std::string name;
+    int subscript;
+  };
+  
+  class Variable_definition {
+  public:
+    virtual void print() const;
+    virtual llvm::Value *codegen() const;
+    Variable_definition(std::shared_ptr<Variable> var) : var(var) {}
+    std::string get_var_name() const {return var->get_name();}
+  protected:
+    std::shared_ptr<Variable> var;
+  };
+
+  class Array_element_definition : public Variable_definition {
+  public:
+    void print() const;
+    llvm::Value *codegen() const;
+    Array_element_definition(std::shared_ptr<Variable> var, int subscript) : Variable_definition(var), subscript(subscript) {}
+    int get_subscript() const {return subscript;}
+  private:
+    int subscript;
   };
   
   class Statement {
