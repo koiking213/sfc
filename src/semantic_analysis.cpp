@@ -37,8 +37,12 @@ namespace cst {
   }
   std::unique_ptr<ast::Variable_definition> Array_element::ASTgen_definition()
   {
-    auto elm_def = std::make_unique<ast::Array_element_definition>(get_or_create_var(this->name),
-                                                                   this->subscript->ASTgen()->eval_constant_value());
+    std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
+    auto lower = std::make_unique<ast::Int32_constant> (var->get_shape().get_lower_bound(0));
+    auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
+                                                  this->subscript->ASTgen(),
+                                                  std::move(lower));
+    auto elm_def = std::make_unique<ast::Array_element_definition>(var,std::move(index));
     return static_unique_pointer_cast<ast::Variable_definition>(std::move(elm_def));
   }
   std::unique_ptr<ast::Expression> Variable::ASTgen()
@@ -50,7 +54,11 @@ namespace cst {
   std::unique_ptr<ast::Expression> Array_element::ASTgen()
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
-    auto elm_ref = std::make_unique<ast::Array_element_reference>(var, this->subscript->ASTgen()->eval_constant_value());
+    auto lower = std::make_unique<ast::Int32_constant> (var->get_shape().get_lower_bound(0));
+    auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
+                                                  this->subscript->ASTgen(),
+                                                  std::move(lower));
+    auto elm_ref = std::make_unique<ast::Array_element_reference>(var, std::move(index));
     return static_unique_pointer_cast<ast::Expression>(std::move(elm_ref));
   }
   std::unique_ptr<ast::Expression> Constant::ASTgen()
@@ -213,6 +221,7 @@ namespace cst {
     }
     program_unit->set_variables(std::move(current_variable_table));
     program_unit->set_types(std::move(current_type_table));
+    
     return program_unit;
   }
 

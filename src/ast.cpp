@@ -84,11 +84,15 @@ namespace ast {
   }
   void Array_element_reference::print() const
   {
-    std::cout << this->var->get_name() << "(" << this->subscript << ")";
+    std::cout << this->var->get_name() << "(";
+    this->index->print();
+    std::cout << ")";
   }
   void Array_element_definition::print() const
   {
-    std::cout << this->var->get_name() << "(" << this->subscript << ")";
+    std::cout << this->var->get_name() << "(";
+    this->index->print();
+    std::cout << ")";
   }
   void Assignment_statement::print(std::string indent) const
   {
@@ -164,8 +168,10 @@ namespace ast {
     std::cout << indent << "name: " << this->name;
     std::cout << ", type: ";
     this->type->print(); // TODO: <<演算子の実装
-    std::cout << ", shape: ";
-    this->shape->print();
+    if (this->shape) {
+      std::cout << ", shape: ";
+      this->shape->print();
+    }
   }
   void Shape::print() const
   {

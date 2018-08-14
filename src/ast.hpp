@@ -40,6 +40,8 @@ namespace ast {
       upper_bounds.push_back(upper);
     }
     void print() const;
+    int get_lower_bound(int index) const {return lower_bounds[index];}
+    int get_upper_bound(int index) const {return upper_bounds[index];}
   private:
     std::vector<int> lower_bounds;
     std::vector<int> upper_bounds;
@@ -54,6 +56,7 @@ namespace ast {
     Type_kind get_type_kind() const {return type->get_type_kind();}
     void set_type(std::shared_ptr<Type> type){this->type = type;}
     void set_shape(std::unique_ptr<Shape> shape) {this->shape = std::move(shape);}
+    const Shape& get_shape() const {return *shape;}
   private:
     std::string name;
     std::shared_ptr<Type> type;
@@ -66,6 +69,7 @@ namespace ast {
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
     virtual enum Type_kind get_type() const = 0;
+    virtual bool is_constant_int() const = 0;
   };
 
   class Binary_op : public Expression {
@@ -81,6 +85,7 @@ namespace ast {
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
     int eval_constant_value() const;
+    bool is_constant_int() const {return lhs->is_constant_int() && rhs->is_constant_int();};
   private:
     binary_op_kind exp_operator;
     std::unique_ptr<Expression> lhs;
@@ -98,6 +103,7 @@ namespace ast {
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
     int eval_constant_value() const {assert(0);};
+    bool is_constant_int() const {return operand->is_constant_int();};
   private:
     unary_op_kind exp_operator;
     std::unique_ptr<Expression> operand;
@@ -121,6 +127,7 @@ namespace ast {
     int32_t get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::i32;};
     int eval_constant_value() const {return value;};
+    bool is_constant_int() const {return true;};
   private:
     int32_t value;
   };
@@ -133,6 +140,7 @@ namespace ast {
     float get_value() const {return value;}
     Type_kind get_type() const {return Type_kind::fp32;};
     int eval_constant_value() const {return (int)value;};
+    bool is_constant_int() const {return false;};
   private:
     float value;
   };
@@ -146,6 +154,7 @@ namespace ast {
     Type_kind get_type() const {return Type_kind::logical;}
     int get_int_value() const {return 1 ? value : 0;}
     int eval_constant_value() const {return (int)value;};
+    bool is_constant_int() const {return false;};
   private:
     bool value;
   };
@@ -157,6 +166,7 @@ namespace ast {
     Variable_reference(std::shared_ptr<Variable> var) {this->var = var;}
     Type_kind get_type() const {return var->get_type_kind();}
     int eval_constant_value() const {assert(0);};
+    bool is_constant_int() const {return false;};
     std::string get_var_name() const {return var->get_name();}
   protected:
     std::shared_ptr<Variable> var;
@@ -166,12 +176,14 @@ namespace ast {
   public:
     void print() const;
     llvm::Value *codegen() const;
-    Array_element_reference(std::shared_ptr<Variable> var, int subscript) : Variable_reference(var), subscript(subscript) {}
-    int get_subscript() const {return subscript;}
+    Array_element_reference(std::shared_ptr<Variable> var, std::unique_ptr<Expression> index) : Variable_reference(var) {
+      this->index = std::move(index);
+    }
   private:
-    int subscript;
+    std::unique_ptr<Expression> index;
   };
-  
+
+  // variable_referenceと区別する必要がない可能性
   class Variable_definition {
   public:
     virtual void print() const;
@@ -186,10 +198,11 @@ namespace ast {
   public:
     void print() const;
     llvm::Value *codegen() const;
-    Array_element_definition(std::shared_ptr<Variable> var, int subscript) : Variable_definition(var), subscript(subscript) {}
-    int get_subscript() const {return subscript;}
+    Array_element_definition(std::shared_ptr<Variable> var, std::unique_ptr<Expression> index) : Variable_definition(var) {
+      this->index = std::move(index);
+    }
   private:
-    int subscript;
+    std::unique_ptr<Expression> index; // subscript - lowerbound
   };
   
   class Statement {

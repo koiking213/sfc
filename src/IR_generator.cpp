@@ -137,7 +137,7 @@ namespace ast {
   }
   llvm::Value *Array_element_reference::codegen() const {
     llvm::Value *val = builder.CreateGEP(variable_table[this->get_var_name()],
-                                         builder.getInt32(this->get_subscript()),
+                                         this->index->codegen(),
                                          "array_element_ref");
     return builder.CreateLoad(val, "elm_load_tmp");
   }
@@ -149,6 +149,9 @@ namespace ast {
     return nullptr;
   }
   llvm::Value *Binary_op::codegen() const {
+    if (this->is_constant_int()) {
+      return builder.getInt32(this->eval_constant_value());
+    }
     llvm::Value *lhs = this->lhs->codegen();
     llvm::Value *rhs = this->rhs->codegen();
     switch (this->exp_operator) {
@@ -241,8 +244,8 @@ namespace ast {
 
   llvm::Value *Array_element_definition::codegen() const {
     return builder.CreateGEP(variable_table[this->get_var_name()],
-                      builder.getInt32(this->get_subscript()),
-                      "array_element_def");
+                             this->index->codegen(),
+                             "array_element_def");
   }
 
   void Assignment_statement::codegen() const
