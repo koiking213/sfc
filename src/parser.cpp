@@ -99,10 +99,13 @@ namespace parser{
   bool assert_end_of_line()
   {
     if (current_line->is_end_of_line()) {
+      skip_blank_lines();
       return true;
     } else {
       current_line->skip_blanks();
       error("unexpected token in end of line", err_kind::end_of_line);
+      skip_this_line();
+      skip_blank_lines();
       return false;
     }
   }
@@ -139,47 +142,46 @@ namespace parser{
     value = current_line->read_real_constant();
     if (value != "") {
       std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "real", value) };
-      return std::move(cnt);
+      return cnt;
     }
     value = current_line->read_int_constant();
     if (value != "") {
       std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "integer", value) };
-      return std::move(cnt);
+      return cnt;
     }
     value = current_line->read_logical_constant();
     if (value != "") {
       std::unique_ptr<Constant> cnt { new Constant(cst::Type_kind::Intrinsic, "logical", value) };
-      return std::move(cnt);
+      return cnt;
     }
     return nullptr;
   }
 
   std::unique_ptr<Program> parse_program_stmt()
   {
-    skip_blank_lines();
     std::string name = "";
     {
       read_token("program");
       if (!read_one_blank()) {
-        goto exit;
+        goto errexit;
       }
       name = read_name();
       if (name == "") {
         error("missing program name in program-stmt", err_kind::character);
-        goto exit;
+        goto errexit;
       }
     }
     assert_end_of_line();
-  exit:
+    return std::make_unique<Program>(name);
+  errexit:
     skip_this_line();
-    std::unique_ptr<Program> program {new Program(name)};
-    return std::move(program);
+    return std::make_unique<Program>(name);
   }
   bool parse_end_program_stmt(const std::string name)
   {
-    skip_blank_lines();
     read_token("end");
     if (is_end_of_line()) {
+      skip_blank_lines();
       return true;
     }
     if (!read_one_blank()) {
@@ -190,6 +192,7 @@ namespace parser{
       goto errexit;
     }
     if (is_end_of_line()) {
+      skip_blank_lines();
       return true;
     }
     if (!read_one_blank()) {
@@ -200,7 +203,7 @@ namespace parser{
       goto errexit;
     }
     if (!assert_end_of_line()) {
-      goto errexit;
+      return false;
     }
     return true;
     
@@ -211,7 +214,6 @@ namespace parser{
 
   std::unique_ptr<Specification> parse_type_declaration()
   {
-    skip_blank_lines();
     std::unique_ptr<Type_specification> spec;
     if (read_token("integer")) {
       spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "integer");
@@ -227,7 +229,8 @@ namespace parser{
       std::string name = read_name();
       spec->add_variable(name);
     } while (read_token(","));
-    return std::move(spec);
+    assert_end_of_line();
+    return spec;
   }
 
   std::unique_ptr<Explicit_shape_spec> parse_explicit_shape_spec()
@@ -277,9 +280,9 @@ namespace parser{
       dimension_stmt->add_spec(std::make_unique<Dimension_spec>(name, std::move(spec)));
       if (!read_token(",")) break;
     }
-    if (!assert_end_of_line()) goto errexit;
     discard_saved_ofs();
-    return std::move(dimension_stmt);
+    assert_end_of_line();
+    return dimension_stmt;
 
   failexit:
     restore_ofs();
@@ -476,7 +479,8 @@ namespace parser{
     assignment_stmt->set_lhs(std::move(var));
     assignment_stmt->set_rhs(parse_expression());
     discard_saved_ofs();
-    return std::move(assignment_stmt);
+    assert_end_of_line();
+    return assignment_stmt;
   }
   std::unique_ptr<Print_statement> parse_print_stmt()
   {
@@ -488,7 +492,8 @@ namespace parser{
     while (read_token(",")) {
       print_stmt->add_element(parse_expression());
     }
-    return std::move(print_stmt);
+    assert_end_of_line();
+    return print_stmt;
   }
   std::unique_ptr<If_statement> parse_if_stmt()
   {
@@ -503,7 +508,6 @@ namespace parser{
   }
   std::unique_ptr<Executable_construct> parse_action_stmt()
   {
-    skip_blank_lines();
     std::unique_ptr<Executable_construct> exec;
     if ((exec = parse_assignment_stmt())) return std::move(exec);
     if ((exec = parse_print_stmt())) return std::move(exec);
@@ -553,8 +557,8 @@ namespace parser{
     if (read_token(",")) {
       stride_expr = parse_expression();
     }
-    if (!assert_end_of_line()) goto parse_fail;
     discard_saved_ofs();
+    assert_end_of_line();
     return std::make_unique<Do_with_do_variable>(do_construct_name,
                                                  std::make_unique<Variable>(do_variable_name),
                                                  std::move(start_expr),
@@ -584,9 +588,12 @@ namespace parser{
       error("END DO statement is expected", err_kind::end_of_line);
       goto errexit;
     }
-    if (is_end_of_line()) return true;
+    if (is_end_of_line()) {
+      skip_blank_lines();
+      return true;
+    }
     if (!read_token(name)) error("name is different from the corresponding do-stmt", err_kind::name);
-    if (!assert_end_of_line()) goto errexit;
+    assert_end_of_line();
     return true;
 
   errexit:

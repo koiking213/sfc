@@ -73,6 +73,9 @@ int main(int argc, char* argv[]) {
     }
   }
   option_list.push_back("-lfortio");
+#if DEBUG_MODE
+  option_list.push_back("-L runtime");
+#endif
   char* tmpdir_env = std::getenv("TMPDIR");
   std::string tmpdir;
   if (tmpdir_env) {
