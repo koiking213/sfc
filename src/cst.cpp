@@ -20,7 +20,7 @@ namespace cst {
     for (int i=0; i<this->lower_bounds.size(); i++) {
       std::cout << "[";
       lower_bounds[i]->print();
-      std::cout << ",";
+      std::cout << ":";
       upper_bounds[i]->print();
       std::cout << "]";
     }
@@ -48,8 +48,9 @@ namespace cst {
     if (this->type_kind == Type_kind::Intrinsic) {
       std::cout << this->type_name << ": ";
     }
-    for (std::string v:this->variables) {
-      std::cout << v << " ";
+    std::cout << this->variables[0];
+    for (int i=1; i<this->variables.size(); i++) {
+      std::cout << ", " << this->variables[i];
     }
     std::cout << std::endl;
   }
@@ -72,19 +73,19 @@ namespace cst {
   void Array_element::print()
   {
     std::cout << this->name << "(";
-    for (auto &subscript : subscripts) {
-      subscript->print();
-      std::cout << " ";
+    this->subscripts[0]->print();
+    for (int i=1; i<this->subscripts.size(); i++) {
+      std::cout << ", ";
+      this->subscripts[i]->print();
     }
     std::cout << ")";
   }
   void Constant::print()
   {
-    std::cout << "(" << this->type_name << ")" << this->value;
+    std::cout << this->value;
   }
   void Expression::print()
   {
-    // もっといい感じに書けないか
     std::cout << "(";
     for (int i=0; i<this->operators.size(); i++) {
       this->operands[i]->print();
@@ -112,7 +113,7 @@ namespace cst {
   void Block::print(std::string indent)
   {
     for (auto& construct : this->execution_part_constructs) {
-      construct->print(indent + "  ");
+      construct->print(indent);
     }
   }
   void Do_with_do_variable::print(std::string indent)
@@ -131,7 +132,7 @@ namespace cst {
     }
     std::cout << std::endl;
     
-    std::cout << indent << "statements:" << std::endl;
-    this->block->print(indent + "  ");
+    std::cout << indent + "  " << "statements:" << std::endl;
+    this->block->print(indent + "    ");
   }
 }

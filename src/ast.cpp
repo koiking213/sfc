@@ -53,26 +53,24 @@ namespace ast {
   {
     std::cout << unary_op_to_string(this->exp_operator);
     this->operand->print();
-    std::cout << std::endl;
   }
   void Binary_op::print() const
   {
     this->lhs->print();
     std::cout << binary_op_to_string(this->exp_operator);
     this->rhs->print();
-    std::cout << std::endl;
   }
   void Int32_constant::print() const
   {
-    std::cout << "(int32)" << this->value;
+    std::cout << this->value;
   }
   void FP32_constant::print() const
   {
-    std::cout << "(real32)" << this->value;
+    std::cout << this->value;
   }
   void Logical_constant::print() const
   {
-    std::cout << "(logical)" << this->value;
+    std::cout << this->value;
   }
   void Variable_reference::print() const
   {
@@ -90,8 +88,7 @@ namespace ast {
   }
   void Assignment_statement::print(std::string indent) const
   {
-    std::cout << indent << "Assignment statement:";
-    std::cout << indent << "  ";
+    std::cout << indent;
     this->lhs->print();
     std::cout << " = ";
     this->rhs->print();
@@ -99,11 +96,13 @@ namespace ast {
   }
   void Output_statement::print(std::string indent) const
   {
-    std::cout << indent << "Output statement:";
-    for (auto &elm : this->elements) {
-      elm->print();
+    std::cout << indent << "Output statement: ";
+    this->elements[0]->print();
+    for (int i=1; i<this->elements.size(); i++) {
       std::cout << ", ";
+      this->elements[i]->print();
     }
+    std::cout << std::endl;
   }
   void If_construct::print(std::string indent) const
   {
@@ -119,41 +118,39 @@ namespace ast {
   void Do_construct::print(std::string indent) const
   {
     std::cout << indent << "Do construct:" << std::endl;
-    std::cout << indent + "  " << "initial_expr:";
-    this->initial_expr->print(indent);
-    std::cout << std::endl;
+    std::cout << indent + "  " << "initial_expr:  ";
+    this->initial_expr->print("");
     if (this->increment_expr) {
-      std::cout << indent + "  " << "increment_expr:";
-      this->increment_expr->print(indent);
-      std::cout << std::endl;
+      std::cout << indent + "  " << "increment_expr: ";
+      this->increment_expr->print("");
     }
     if (this->condition_expr) {
-      std::cout << indent + "  " << "condition_expr:";
+      std::cout << indent + "  " << "condition_expr: ";
       this->condition_expr->print();
       std::cout << std::endl;
     }
     std::cout << indent + "  " << "block:" << std::endl;
-    this->block->print(indent);
+    this->block->print(indent + "  ");
   }
   void Program_unit::print(std::string indent) const
   {
     std::cout << indent << "ProgramUnit:" << this->name << std::endl;
-    // TODO: リストを出力する処理は共通化したい
     std::cout << indent << "  " << "variables:" << std::endl;
     for (auto var : *this->variables) {
-      var.second->print(indent + "  ");
+      var.second->print(indent + "    ");
+      std::cout << std::endl;
     }
-    std::cout << std::endl;
     
     std::cout << indent << "  " << "statements:" << std::endl;;
     for (auto &stmt : this->statements) {
-      stmt->print(indent + "  ");
+      stmt->print(indent + "    ");
     }
-    std::cout << std::endl;
 
-    std::cout << indent << "  " << "internal programs:" << std::endl;
-    for (auto &internal_program : this->internal_programs) {
-      internal_program->print(indent + "  ");
+    if (this->internal_programs.size() >= 1) {
+      std::cout << indent << "  " << "internal programs:" << std::endl;
+      for (auto &internal_program : this->internal_programs) {
+        internal_program->print(indent + "    ");
+      }
     }
     std::cout << std::endl;
   }
@@ -169,8 +166,9 @@ namespace ast {
   }
   void Shape::print() const
   {
-    for (int i=0; i<this->lower_bounds.size(); i++) {
-      std::cout << this->lower_bounds[i] << ":" << this->upper_bounds[i] << " ";
+    std::cout << this->lower_bounds[0] << ":" << this->upper_bounds[0];
+    for (int i=1; i<this->lower_bounds.size(); i++) {
+      std::cout << " " << this->lower_bounds[i] << ":" << this->upper_bounds[i];
     }
   }
   void Type::print() const
