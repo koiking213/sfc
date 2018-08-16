@@ -137,7 +137,7 @@ namespace ast {
   }
   llvm::Value *Array_element_reference::codegen() const {
     llvm::Value *val = builder.CreateGEP(variable_table[this->get_var_name()],
-                                         this->index->codegen(),
+                                         this->offset_expr->codegen(),
                                          "array_element_ref");
     return builder.CreateLoad(val, "elm_load_tmp");
   }
@@ -244,7 +244,7 @@ namespace ast {
 
   llvm::Value *Array_element_definition::codegen() const {
     return builder.CreateGEP(variable_table[this->get_var_name()],
-                             this->index->codegen(),
+                             this->offset_expr->codegen(),
                              "array_element_def");
   }
 

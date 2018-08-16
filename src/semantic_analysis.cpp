@@ -35,14 +35,20 @@ namespace cst {
     std::unique_ptr<ast::Variable_definition> var { new ast::Variable_definition(get_or_create_var(this->name)) };
     return var; // ひょっとしてstd::moveしなくていい？
   }
+  // ASTgenを呼び出して、その後ちょこっと何かをするように変更できない？
   std::unique_ptr<ast::Variable_definition> Array_element::ASTgen_definition()
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
-    auto lower = std::make_unique<ast::Int32_constant> (var->get_shape().get_lower_bound(0));
-    auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
-                                                  this->subscript->ASTgen(),
-                                                  std::move(lower));
-    auto elm_def = std::make_unique<ast::Array_element_definition>(var,std::move(index));
+    auto elm_def = std::make_unique<ast::Array_element_definition>(var);
+    const ast::Shape &shape = var->get_shape();
+    for (int i=0; i<shape.get_rank(); i++) {
+      auto lower = std::make_unique<ast::Int32_constant> (shape.get_lower_bound(i));
+      auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
+                                                    this->subscripts[i]->ASTgen(),
+                                                    std::move(lower));
+      elm_def->add_index(std::move(index));
+    }
+    elm_def->calc_offset_expr();
     return static_unique_pointer_cast<ast::Variable_definition>(std::move(elm_def));
   }
   std::unique_ptr<ast::Expression> Variable::ASTgen()
@@ -54,11 +60,16 @@ namespace cst {
   std::unique_ptr<ast::Expression> Array_element::ASTgen()
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
-    auto lower = std::make_unique<ast::Int32_constant> (var->get_shape().get_lower_bound(0));
-    auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
-                                                  this->subscript->ASTgen(),
-                                                  std::move(lower));
-    auto elm_ref = std::make_unique<ast::Array_element_reference>(var, std::move(index));
+    auto elm_ref = std::make_unique<ast::Array_element_reference>(var);
+    const ast::Shape &shape = var->get_shape();
+    for (int i=0; i<shape.get_rank(); i++) {
+      auto lower = std::make_unique<ast::Int32_constant> (shape.get_lower_bound(i));
+      auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
+                                                    this->subscripts[i]->ASTgen(),
+                                                    std::move(lower));
+      elm_ref->add_index(std::move(index));
+    }
+    elm_ref->calc_offset_expr();
     return static_unique_pointer_cast<ast::Expression>(std::move(elm_ref));
   }
   std::unique_ptr<ast::Expression> Constant::ASTgen()
@@ -250,6 +261,7 @@ namespace cst {
       std::unique_ptr<ast::Expression> lower = lower_bounds[i]->ASTgen();
       shape->add_dimension(lower->eval_constant_value(),
                            upper->eval_constant_value());
+      shape->add_dimension_expr(std::move(upper), std::move(lower));
     }
     return std::move(shape);
   }

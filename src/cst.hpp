@@ -54,6 +54,7 @@ namespace cst {
   public:
     virtual void print() = 0;
     virtual std::unique_ptr<ast::Shape> ASTgen() = 0;
+    virtual ~Array_spec() {};
   };
 
   class Explicit_shape_spec : public Array_spec {
@@ -168,14 +169,13 @@ namespace cst {
 
   class Array_element : public Variable {
   public:
-    Array_element(std::string name, std::unique_ptr<Expression> subscript) : Variable(name) {
-      this->subscript = std::move(subscript);
-    }
+    Array_element(std::string name, std::vector<std::unique_ptr<Expression>> subscripts)
+      : Variable(name), subscripts(std::move(subscripts)) {}
     void print();
     std::unique_ptr<ast::Expression> ASTgen();
     std::unique_ptr<ast::Variable_definition> ASTgen_definition();
   private:
-    std::unique_ptr<Expression> subscript;
+    std::vector<std::unique_ptr<Expression>> subscripts;
   };
 
   class Constant : public Expression {

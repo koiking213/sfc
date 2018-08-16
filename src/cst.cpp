@@ -72,7 +72,10 @@ namespace cst {
   void Array_element::print()
   {
     std::cout << this->name << "(";
-    this->subscript->print();
+    for (auto &subscript : subscripts) {
+      subscript->print();
+      std::cout << " ";
+    }
     std::cout << ")";
   }
   void Constant::print()

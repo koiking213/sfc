@@ -4,6 +4,9 @@
 #include "llvm/IR/IRBuilder.h"
 
 namespace ast {
+
+  class Expression;
+  
   enum class binary_op_kind {
     add, sub, mul, div,
     eq, ne, lt, le, gt, ge
@@ -35,16 +38,25 @@ namespace ast {
   public:
     int get_size(int index) const {return upper_bounds[index] - lower_bounds[index] + 1;}
     int get_size() const;
-    void add_dimension(int lower, int upper) {
+    void add_dimension(int lower, int upper) { // del
       lower_bounds.push_back(lower);
       upper_bounds.push_back(upper);
     }
+    void add_dimension_expr(std::unique_ptr<Expression> lower, std::unique_ptr<Expression> upper) {
+      this->lower_bounds_expr.push_back(std::move(lower));
+      this->upper_bounds_expr.push_back(std::move(upper));
+    }
     void print() const;
-    int get_lower_bound(int index) const {return lower_bounds[index];}
-    int get_upper_bound(int index) const {return upper_bounds[index];}
+    int get_lower_bound(int index) const {return lower_bounds[index];} // del
+    int get_upper_bound(int index) const {return upper_bounds[index];} // del
+    const Expression &get_lower_bound_expr(int index) const {return *lower_bounds_expr[index];}
+    const Expression &get_upper_bound_expr(int index) const {return *upper_bounds_expr[index];}
+    int get_rank() const {return lower_bounds.size();}
   private:
-    std::vector<int> lower_bounds;
-    std::vector<int> upper_bounds;
+    std::vector<int> lower_bounds; // del
+    std::vector<int> upper_bounds; // del
+    std::vector<std::unique_ptr<Expression>> lower_bounds_expr;
+    std::vector<std::unique_ptr<Expression>> upper_bounds_expr;
   };
 
   class Variable {
@@ -70,6 +82,8 @@ namespace ast {
     virtual llvm::Value *codegen() const = 0;
     virtual enum Type_kind get_type() const = 0;
     virtual bool is_constant_int() const = 0;
+    virtual std::unique_ptr<Expression> get_copy() const = 0;
+    virtual ~Expression() {};
   };
 
   class Binary_op : public Expression {
@@ -78,14 +92,19 @@ namespace ast {
       this->lhs = std::move(lhs);
       this->rhs = std::move(rhs);
     }
-    void set_operator(binary_op_kind op) {this->exp_operator = op;}
-    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);}
-    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
+    void set_operator(binary_op_kind op) {this->exp_operator = op;} // del
+    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);} // del
+    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);} // del
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
     int eval_constant_value() const;
-    bool is_constant_int() const {return lhs->is_constant_int() && rhs->is_constant_int();};
+    bool is_constant_int() const;
+    std::unique_ptr<Expression> get_copy() const {
+      return std::make_unique<Binary_op>(exp_operator,
+                                         lhs->get_copy(),
+                                         rhs->get_copy());
+    };
   private:
     binary_op_kind exp_operator;
     std::unique_ptr<Expression> lhs;
@@ -104,6 +123,9 @@ namespace ast {
     enum Type_kind get_type() const;
     int eval_constant_value() const {assert(0);};
     bool is_constant_int() const {return operand->is_constant_int();};
+    std::unique_ptr<Expression> get_copy() const {
+      return std::make_unique<Unary_op>(exp_operator, operand->get_copy());
+    }
   private:
     unary_op_kind exp_operator;
     std::unique_ptr<Expression> operand;
@@ -115,6 +137,8 @@ namespace ast {
     virtual llvm::Value *codegen() const = 0;
     virtual Type_kind get_type() const = 0;
     virtual int eval_constant_value() const = 0;
+    virtual std::unique_ptr<Expression> get_copy() const = 0;
+    virtual ~Constant() {};
   private:
     enum Type_kind type_kind;
   };
@@ -128,6 +152,7 @@ namespace ast {
     Type_kind get_type() const {return Type_kind::i32;};
     int eval_constant_value() const {return value;};
     bool is_constant_int() const {return true;};
+    std::unique_ptr<Expression> get_copy() const {return std::make_unique<Int32_constant>(value);}
   private:
     int32_t value;
   };
@@ -141,11 +166,12 @@ namespace ast {
     Type_kind get_type() const {return Type_kind::fp32;};
     int eval_constant_value() const {return (int)value;};
     bool is_constant_int() const {return false;};
+    std::unique_ptr<Expression> get_copy() const {return std::make_unique<FP32_constant>(value);}
   private:
     float value;
   };
 
-  class Logical_constant : public Constant {
+  class Logical_constant : public Constant { // 別のclassにするよりtemplateを検討する
   public:
     Logical_constant(bool val) : value(val) {};
     void print() const;
@@ -155,6 +181,7 @@ namespace ast {
     int get_int_value() const {return 1 ? value : 0;}
     int eval_constant_value() const {return (int)value;};
     bool is_constant_int() const {return false;};
+    std::unique_ptr<Expression> get_copy() const {return std::make_unique<Logical_constant>(value);}
   private:
     bool value;
   };
@@ -163,46 +190,49 @@ namespace ast {
   public:
     virtual void print() const;
     virtual llvm::Value *codegen() const;
-    Variable_reference(std::shared_ptr<Variable> var) {this->var = var;}
+    Variable_reference(std::shared_ptr<Variable> var) : var(var) {};
     Type_kind get_type() const {return var->get_type_kind();}
     int eval_constant_value() const {assert(0);};
     bool is_constant_int() const {return false;};
     std::string get_var_name() const {return var->get_name();}
+    virtual std::unique_ptr<Expression> get_copy() const {return std::make_unique<Variable_reference>(var);}
   protected:
     std::shared_ptr<Variable> var;
+    Variable_reference() {};
   };
 
-  class Array_element_reference : public Variable_reference {
+  class Array_element_reference : virtual public Variable_reference {
   public:
     void print() const;
-    llvm::Value *codegen() const;
-    Array_element_reference(std::shared_ptr<Variable> var, std::unique_ptr<Expression> index) : Variable_reference(var) {
-      this->index = std::move(index);
-    }
-  private:
-    std::unique_ptr<Expression> index;
-  };
-
-  // variable_referenceと区別する必要がない可能性
-  class Variable_definition {
-  public:
-    virtual void print() const;
     virtual llvm::Value *codegen() const;
-    Variable_definition(std::shared_ptr<Variable> var) : var(var) {}
-    std::string get_var_name() const {return var->get_name();}
+    Array_element_reference(std::shared_ptr<Variable> var) : Variable_reference(var) {}
+    void add_index(std::unique_ptr<Expression> index) {indices.push_back(std::move(index));}
+    std::unique_ptr<Expression> get_copy() const {
+      auto result = std::make_unique<Array_element_reference>(var);
+      for (auto &index : indices) {
+        result->add_index(index->get_copy());
+      }
+      return result;
+    }
+    void calc_offset_expr();
   protected:
-    std::shared_ptr<Variable> var;
+    std::vector<std::unique_ptr<Expression>> indices;
+    std::unique_ptr<Expression> offset_expr = nullptr;
+    Array_element_reference() {};
   };
 
-  class Array_element_definition : public Variable_definition {
+  class Variable_definition : virtual public Variable_reference {
   public:
-    void print() const;
+    virtual llvm::Value *codegen() const;
+    Variable_definition(std::shared_ptr<Variable> var) : Variable_reference(var) {}
+  };
+
+  class Array_element_definition : public Variable_definition,
+                                   public Array_element_reference {
+  public:
     llvm::Value *codegen() const;
-    Array_element_definition(std::shared_ptr<Variable> var, std::unique_ptr<Expression> index) : Variable_definition(var) {
-      this->index = std::move(index);
-    }
-  private:
-    std::unique_ptr<Expression> index; // subscript - lowerbound
+    Array_element_definition(std::shared_ptr<Variable> var)
+      : Variable_reference(var), Variable_definition(var), Array_element_reference(var) {}
   };
   
   class Statement {

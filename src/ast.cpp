@@ -78,20 +78,14 @@ namespace ast {
   {
     std::cout << this->var->get_name();
   }
-  void Variable_definition::print() const
-  {
-    std::cout << this->get_var_name();
-  }
   void Array_element_reference::print() const
   {
     std::cout << this->var->get_name() << "(";
-    this->index->print();
-    std::cout << ")";
-  }
-  void Array_element_definition::print() const
-  {
-    std::cout << this->var->get_name() << "(";
-    this->index->print();
+    this->indices[0]->print();
+    for (int i=1; i<indices.size(); i++) {
+      std::cout << ",";
+      this->indices[i]->print();
+    }
     std::cout << ")";
   }
   void Assignment_statement::print(std::string indent) const
@@ -214,6 +208,11 @@ namespace ast {
     if (l==r) return l;
     assert(0);
   }
+  bool Binary_op::is_constant_int() const
+  {
+    if (this->get_type() != Type_kind::i32) return false;
+    return lhs->is_constant_int() && rhs->is_constant_int();
+  }
   int Binary_op::eval_constant_value() const
   {
     int lval = this->lhs->eval_constant_value();
@@ -238,5 +237,30 @@ namespace ast {
       sum = sum * this->get_size(i);
     }
     return sum;
+  }
+
+  // これを常に呼ぶというインターフェースはあまり良くない気がするが...
+  // Array_element_definitionのindicesの持ち方を変更して、コンストラクタでやる？
+  void Array_element_reference::calc_offset_expr()
+  {
+    // DEBUG
+    // this->offset_expr = std::make_unique<Int32_constant>(1);
+    //   //std::move(this->indices[0]);
+    // return;
+    // END DEBUG
+    assert(!this->offset_expr);
+    std::unique_ptr<Expression> expr;
+    // integer :: a(10,3,2)
+    // a(i,j,k)のoffsetは(k*3+j)*10+i
+    expr = this->indices[indices.size()-1]->get_copy();
+    for (int i=indices.size()-2; i>=0; i--) {
+      // mult
+      std::unique_ptr<Expression> lower = this->var->get_shape().get_lower_bound_expr(i).get_copy();
+      expr = std::make_unique<Binary_op>(binary_op_kind::mul, std::move(expr), std::move(lower));
+      // add
+      std::unique_ptr<Expression> subscript = this->indices[i]->get_copy();
+      expr = std::make_unique<Binary_op>(binary_op_kind::add, std::move(expr), std::move(subscript));
+    }
+    this->offset_expr = std::move(expr);
   }
 }

@@ -315,18 +315,23 @@ namespace parser{
   {
     // same as part_ref for now
     save_ofs();
+    std::vector<std::unique_ptr<Expression>> subscripts;
     std::string name = read_name();
     std::unique_ptr<Expression> subscript;
 
     if (name == "") goto failexit;
     if (!read_token("(")) goto failexit;
-    subscript = parse_section_subscript();
-    if (!subscript) goto failexit;
+    while (true) {
+      subscript = parse_section_subscript();
+      if (!subscript) goto failexit;
+      subscripts.push_back(std::move(subscript));
+      if (!read_token(",")) break;
+    }
     if (!read_token(")")) goto failexit;
 
     discard_saved_ofs();
-    // 以下は単にreturnするだけではダメ？
-    return std::move(std::make_unique<Array_element>(name, std::move(subscript)));
+    return std::make_unique<Array_element>(name, std::move(subscripts));
+ 
   failexit:
     restore_ofs();
     return nullptr;
