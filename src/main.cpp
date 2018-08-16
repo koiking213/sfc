@@ -39,7 +39,6 @@ void link(std::vector<std::string> file_list, std::vector<std::string> option_li
   for (std::string file : file_list) {
     command = command + " " + file;
   }
-  command = command + " " + "libfortio.a";
   for (std::string opt : option_list) {
     command = command + " " + opt;
   }
@@ -57,7 +56,7 @@ int main(int argc, char* argv[]) {
   std::string output_name = "";
   bool success = true;
   int opt;
-  while ((opt = getopt(argc, argv, "co:d")) != -1) {
+  while ((opt = getopt(argc, argv, "co:dL:")) != -1) {
     switch (opt) {
     case 'c':
       link_flag = false;
@@ -68,8 +67,12 @@ int main(int argc, char* argv[]) {
     case 'd':
       debug_mode = true;
       break;
+    case 'L':
+      option_list.push_back("-L" + std::string(optarg));
+      break;
     }
   }
+  option_list.push_back("-lfortio");
   char* tmpdir_env = std::getenv("TMPDIR");
   std::string tmpdir;
   if (tmpdir_env) {

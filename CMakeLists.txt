@@ -13,7 +13,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 add_executable(sfc src/main.cpp src/parser.cpp src/ast.cpp src/IR_generator.cpp src/semantic_analysis.cpp src/cst.cpp src/Line.cpp)
-add_library(fortio STATIC runtime/write.c)
+add_subdirectory(runtime)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
@@ -26,6 +26,5 @@ target_link_libraries(sfc ${llvm_libs})
 # test
 if(NOT without-test)
   enable_testing()
-#  include(cmake/gtest.cmake)
-#  add_subdirectory(test)
+  add_subdirectory(test)
 endif()
