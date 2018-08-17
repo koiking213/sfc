@@ -34,29 +34,30 @@ namespace ast {
     enum Type_kind type_kind;
   };
 
+  class Bound {
+  public:
+    Bound(std::unique_ptr<Expression> lower, std::unique_ptr<Expression> upper)
+      : lower(std::move(lower)), upper(std::move(upper)) {}
+    const Expression &get_lower() const {return *lower;}
+    const Expression &get_upper() const {return *upper;}
+    void print() const;
+  private:
+    std::unique_ptr<Expression> lower;
+    std::unique_ptr<Expression> upper;
+  };
+
   class Shape {
   public:
-    int get_size(int index) const {return upper_bounds[index] - lower_bounds[index] + 1;}
+    int get_size(int i) const;
     int get_size() const;
-    void add_dimension(int lower, int upper) { // del
-      lower_bounds.push_back(lower);
-      upper_bounds.push_back(upper);
-    }
-    void add_dimension_expr(std::unique_ptr<Expression> lower, std::unique_ptr<Expression> upper) {
-      this->lower_bounds_expr.push_back(std::move(lower));
-      this->upper_bounds_expr.push_back(std::move(upper));
-    }
+    Shape(std::vector<std::unique_ptr<Bound>> bounds) : bounds(std::move(bounds)) {}
     void print() const;
-    int get_lower_bound(int index) const {return lower_bounds[index];} // del
-    int get_upper_bound(int index) const {return upper_bounds[index];} // del
-    const Expression &get_lower_bound_expr(int index) const {return *lower_bounds_expr[index];}
-    const Expression &get_upper_bound_expr(int index) const {return *upper_bounds_expr[index];}
-    int get_rank() const {return lower_bounds.size();}
+    const Expression &get_lower_bound(int index) const {return bounds[index]->get_lower();}
+    const Expression &get_upper_bound(int index) const {return bounds[index]->get_upper();}
+    int get_rank() const {return bounds.size();}
+    
   private:
-    std::vector<int> lower_bounds; // del
-    std::vector<int> upper_bounds; // del
-    std::vector<std::unique_ptr<Expression>> lower_bounds_expr;
-    std::vector<std::unique_ptr<Expression>> upper_bounds_expr;
+    std::vector<std::unique_ptr<Bound>> bounds;
   };
 
   class Variable {
@@ -205,19 +206,22 @@ namespace ast {
   public:
     void print() const;
     virtual llvm::Value *codegen() const;
-    Array_element_reference(std::shared_ptr<Variable> var) : Variable_reference(var) {}
-    void add_index(std::unique_ptr<Expression> index) {indices.push_back(std::move(index));}
-    std::unique_ptr<Expression> get_copy() const {
-      auto result = std::make_unique<Array_element_reference>(var);
-      for (auto &index : indices) {
-        result->add_index(index->get_copy());
-      }
-      return result;
+    Array_element_reference(std::shared_ptr<Variable> var,
+                            std::vector<std::unique_ptr<Expression>> indices)
+      : Variable_reference(var), indices(std::move(indices)) {
+      calc_offset_expr();
     }
-    void calc_offset_expr();
+    std::unique_ptr<Expression> get_copy() const {
+      std::vector<std::unique_ptr<Expression>> new_indices;
+      for (auto &index : this->indices) {
+        new_indices.push_back(index->get_copy());
+      }
+      return std::make_unique<Array_element_reference>(var, std::move(new_indices));
+    }
   protected:
     std::vector<std::unique_ptr<Expression>> indices;
-    std::unique_ptr<Expression> offset_expr = nullptr;
+    std::unique_ptr<Expression> offset_expr;
+    void calc_offset_expr();
     Array_element_reference() {};
   };
 
@@ -231,8 +235,9 @@ namespace ast {
                                    public Array_element_reference {
   public:
     llvm::Value *codegen() const;
-    Array_element_definition(std::shared_ptr<Variable> var)
-      : Variable_reference(var), Variable_definition(var), Array_element_reference(var) {}
+    Array_element_definition(std::shared_ptr<Variable> var,
+                             std::vector<std::unique_ptr<Expression>> indices)
+      : Variable_reference(var), Variable_definition(var), Array_element_reference(var, std::move(indices)) {}
   };
   
   class Statement {
@@ -244,10 +249,11 @@ namespace ast {
 
   class Assignment_statement : public Statement {
   public:
+    Assignment_statement(std::unique_ptr<Variable_definition> lhs,
+                         std::unique_ptr<Expression> rhs)
+      : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print(std::string indent) const;
     void codegen() const;
-    void set_lhs(std::unique_ptr<Variable_definition> lhs) {this->lhs = std::move(lhs);}
-    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
   private:
     std::unique_ptr<Variable_definition> lhs;
     std::unique_ptr<Expression> rhs;

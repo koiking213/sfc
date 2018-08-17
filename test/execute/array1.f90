@@ -1,6 +1,6 @@
 program main
   integer i
-  dimension i(3)
+  dimension i(0:2)
   i(0) = 1
   i(1) = i(0)+1
   i(2) = i(1)+1

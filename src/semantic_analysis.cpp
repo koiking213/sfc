@@ -32,23 +32,21 @@ namespace cst {
   }
   std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition()
   {
-    std::unique_ptr<ast::Variable_definition> var { new ast::Variable_definition(get_or_create_var(this->name)) };
-    return var; // ひょっとしてstd::moveしなくていい？
+    return std::make_unique<ast::Variable_definition>(get_or_create_var(this->name));
   }
-  // ASTgenを呼び出して、その後ちょこっと何かをするように変更できない？
   std::unique_ptr<ast::Variable_definition> Array_element::ASTgen_definition()
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
-    auto elm_def = std::make_unique<ast::Array_element_definition>(var);
+    std::vector<std::unique_ptr<ast::Expression>> indices;
     const ast::Shape &shape = var->get_shape();
     for (int i=0; i<shape.get_rank(); i++) {
-      auto lower = std::make_unique<ast::Int32_constant> (shape.get_lower_bound(i));
+      auto lower = std::make_unique<ast::Int32_constant>(shape.get_lower_bound(i).eval_constant_value());
       auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
                                                     this->subscripts[i]->ASTgen(),
                                                     std::move(lower));
-      elm_def->add_index(std::move(index));
+      indices.push_back(std::move(index));
     }
-    elm_def->calc_offset_expr();
+    auto elm_def = std::make_unique<ast::Array_element_definition>(var, std::move(indices));
     return static_unique_pointer_cast<ast::Variable_definition>(std::move(elm_def));
   }
   std::unique_ptr<ast::Expression> Variable::ASTgen()
@@ -60,16 +58,16 @@ namespace cst {
   std::unique_ptr<ast::Expression> Array_element::ASTgen()
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
-    auto elm_ref = std::make_unique<ast::Array_element_reference>(var);
+    std::vector<std::unique_ptr<ast::Expression>> indices;
     const ast::Shape &shape = var->get_shape();
     for (int i=0; i<shape.get_rank(); i++) {
-      auto lower = std::make_unique<ast::Int32_constant> (shape.get_lower_bound(i));
+      auto lower = std::make_unique<ast::Int32_constant> (shape.get_lower_bound(i).eval_constant_value());
       auto index = std::make_unique<ast::Binary_op>(ast::binary_op_kind::sub,
                                                     this->subscripts[i]->ASTgen(),
                                                     std::move(lower));
-      elm_ref->add_index(std::move(index));
+      indices.push_back(std::move(index));
     }
-    elm_ref->calc_offset_expr();
+    auto elm_ref = std::make_unique<ast::Array_element_reference>(var, std::move(indices));
     return static_unique_pointer_cast<ast::Expression>(std::move(elm_ref));
   }
   std::unique_ptr<ast::Expression> Constant::ASTgen()
@@ -102,12 +100,6 @@ namespace cst {
   std::unique_ptr<ast::Expression> Expression::ASTgen()
   {
     std::unique_ptr<ast::Expression> exp = nullptr;
-    // for iでうまく行ったら以下で行く?
-    // auto &op = this->operators.rbegin();
-    // auto &operand = this->operand.rbegin();
-    // for (; op != this->operators.rend(); op++, operand++)
-    // そもそも再帰で書きたい
-    
     if (is_binary_operator(this->operators[0])) {
       for (int i=0; i<this->operators.size(); i++) {
         ast::binary_op_kind op;
@@ -135,13 +127,7 @@ namespace cst {
           std::cout << "internal error: unknown operator" << std::endl;
           assert(0);
         }
-        // 三項演算子で書き直せる？
-        std::unique_ptr<ast::Expression> lhs;
-        if (exp) {
-          lhs = std::move(exp);
-        } else {
-          lhs = this->operands[i]->ASTgen();
-        }
+        std::unique_ptr<ast::Expression> lhs = exp ? std::move(exp) : this->operands[i]->ASTgen();
         std::unique_ptr<ast::Expression> rhs = this->operands[i+1]->ASTgen();
         if (lhs->get_type() != rhs->get_type()) {
           // cast
@@ -168,14 +154,10 @@ namespace cst {
 
   std::unique_ptr<ast::Statement> Do_with_do_variable::ASTgen()
   {
-    // auto 使える？
-    std::unique_ptr<ast::Assignment_statement> initial_expr { new ast::Assignment_statement() };
-    {
-      initial_expr->set_lhs(std::move(this->do_variable->ASTgen_definition()));
-      initial_expr->set_rhs(std::move(this->start_expr->ASTgen()));
-    }
-    
-    std::unique_ptr<ast::Assignment_statement> increment_expr { new ast::Assignment_statement() };
+    auto initial_expr = std::make_unique<ast::Assignment_statement>(this->do_variable->ASTgen_definition(),
+                                                                    this->start_expr->ASTgen());
+
+    std::unique_ptr<ast::Assignment_statement> increment_expr;
     {
       std::unique_ptr<ast::Expression> increment_val;
       if (this->stride_expr) {
@@ -183,19 +165,16 @@ namespace cst {
       } else {
         increment_val = std::make_unique<ast::Int32_constant>(1);
       }
-      std::unique_ptr<ast::Expression> increment_expr_rhs { new ast::Binary_op
-          (ast::binary_op_kind::add,
-           this->do_variable->ASTgen(),
-           std::move(increment_val)) };
-      increment_expr->set_lhs(this->do_variable->ASTgen_definition());
-      increment_expr->set_rhs(std::move(increment_expr_rhs));
+      auto increment_expr_rhs = std::make_unique<ast::Binary_op>(ast::binary_op_kind::add,
+                                                                 this->do_variable->ASTgen(),
+                                                                 std::move(increment_val));
+      increment_expr = std::make_unique<ast::Assignment_statement>(this->do_variable->ASTgen_definition(),
+                                                                   std::move(increment_expr_rhs));
     }
 
-    std::unique_ptr<ast::Binary_op> condition_expr
-      = std::make_unique<ast::Binary_op>(ast::binary_op_kind::le,
-                                         this->do_variable->ASTgen(),
-                                         this->end_expr->ASTgen());
-
+    auto condition_expr = std::make_unique<ast::Binary_op>(ast::binary_op_kind::le,
+                                                           this->do_variable->ASTgen(),
+                                                           this->end_expr->ASTgen());
     return std::make_unique<ast::Do_construct> (std::move(initial_expr),
                                                 std::move(increment_expr),
                                                 std::move(condition_expr),
@@ -204,19 +183,17 @@ namespace cst {
 
   std::unique_ptr<ast::Block> Block::ASTgen()
   {
-    std::unique_ptr<ast::Block> ast_block { new ast::Block() };
+    auto ast_block = std::make_unique<ast::Block>();
     for (auto &construct : this->execution_part_constructs) {
       ast_block->add_statement(construct->ASTgen());
     }
-    return std::move(ast_block);
+    return ast_block;
   }
   
   std::unique_ptr<ast::Statement> Assignment_statement::ASTgen()
   {
-    std::unique_ptr<ast::Assignment_statement> stmt { new ast::Assignment_statement() };
-    stmt->set_lhs(this->lhs->ASTgen_definition());
-    stmt->set_rhs(this->rhs->ASTgen());
-    return std::move(stmt);
+    return std::make_unique<ast::Assignment_statement>(this->lhs->ASTgen_definition(),
+                                                       this->rhs->ASTgen());
   }
   
   std::shared_ptr<ast::Program_unit> Program::ASTgen()
@@ -255,15 +232,12 @@ namespace cst {
 
   std::unique_ptr<ast::Shape> Explicit_shape_spec::ASTgen()
   {
-    std::unique_ptr<ast::Shape> shape { new ast::Shape() };
+    std::vector<std::unique_ptr<ast::Bound>> bounds;
     for (int i=0; i<this->lower_bounds.size(); i++) {
-      std::unique_ptr<ast::Expression> upper = upper_bounds[i]->ASTgen();
-      std::unique_ptr<ast::Expression> lower = lower_bounds[i]->ASTgen();
-      shape->add_dimension(lower->eval_constant_value(),
-                           upper->eval_constant_value());
-      shape->add_dimension_expr(std::move(upper), std::move(lower));
+      bounds.push_back(std::make_unique<ast::Bound>(lower_bounds[i]->ASTgen(),
+                                                    upper_bounds[i]->ASTgen()));
     }
-    return std::move(shape);
+    return std::make_unique<ast::Shape>(std::move(bounds));
   }
 
   void Dimension_statement::ASTgen(std::shared_ptr<ast::Program_unit> program)

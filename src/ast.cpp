@@ -85,6 +85,9 @@ namespace ast {
       this->indices[i]->print();
     }
     std::cout << ")";
+    std::cout << "(offset is ";
+    this->offset_expr->print();
+    std::cout << ")";
   }
   void Assignment_statement::print(std::string indent) const
   {
@@ -164,11 +167,18 @@ namespace ast {
       this->shape->print();
     }
   }
+  void Bound::print() const
+  {
+    this->lower->print();
+    std::cout << ":";
+    this->upper->print();
+  }
   void Shape::print() const
   {
-    std::cout << this->lower_bounds[0] << ":" << this->upper_bounds[0];
-    for (int i=1; i<this->lower_bounds.size(); i++) {
-      std::cout << " " << this->lower_bounds[i] << ":" << this->upper_bounds[i];
+    this->bounds[0]->print();
+    for (int i=1; i<this->bounds.size(); i++) {
+      std::cout << " ";
+      this->bounds[i]->print();
     }
   }
   void Type::print() const
@@ -228,24 +238,21 @@ namespace ast {
       assert(0);
     }
   }
+  int Shape::get_size(int i) const
+  {
+    return bounds[i]->get_upper().eval_constant_value() - bounds[i]->get_lower().eval_constant_value() + 1;
+  }
   int Shape::get_size() const
   {
     int sum=1;
-    for (int i=0; i<this->lower_bounds.size(); i++) {
+    for (int i=0; i<this->bounds.size(); i++) {
       sum = sum * this->get_size(i);
     }
     return sum;
   }
 
-  // これを常に呼ぶというインターフェースはあまり良くない気がするが...
-  // Array_element_definitionのindicesの持ち方を変更して、コンストラクタでやる？
   void Array_element_reference::calc_offset_expr()
   {
-    // DEBUG
-    // this->offset_expr = std::make_unique<Int32_constant>(1);
-    //   //std::move(this->indices[0]);
-    // return;
-    // END DEBUG
     assert(!this->offset_expr);
     std::unique_ptr<Expression> expr;
     // integer :: a(10,3,2)
@@ -253,8 +260,8 @@ namespace ast {
     expr = this->indices[indices.size()-1]->get_copy();
     for (int i=indices.size()-2; i>=0; i--) {
       // mult
-      std::unique_ptr<Expression> lower = this->var->get_shape().get_lower_bound_expr(i).get_copy();
-      expr = std::make_unique<Binary_op>(binary_op_kind::mul, std::move(expr), std::move(lower));
+      std::unique_ptr<Int32_constant> size { new Int32_constant(this->var->get_shape().get_size(i)) };
+      expr = std::make_unique<Binary_op>(binary_op_kind::mul, std::move(expr), std::move(size));
       // add
       std::unique_ptr<Expression> subscript = this->indices[i]->get_copy();
       expr = std::make_unique<Binary_op>(binary_op_kind::add, std::move(expr), std::move(subscript));
