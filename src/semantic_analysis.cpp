@@ -30,11 +30,11 @@ namespace cst {
   {
     return false;
   }
-  std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition()
+  std::unique_ptr<ast::Variable_definition> Variable::ASTgen_definition() const
   {
     return std::make_unique<ast::Variable_definition>(get_or_create_var(this->name));
   }
-  std::unique_ptr<ast::Variable_definition> Array_element::ASTgen_definition()
+  std::unique_ptr<ast::Variable_definition> Array_element::ASTgen_definition() const
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
     std::vector<std::unique_ptr<ast::Expression>> indices;
@@ -49,13 +49,13 @@ namespace cst {
     auto elm_def = std::make_unique<ast::Array_element_definition>(var, std::move(indices));
     return static_unique_pointer_cast<ast::Variable_definition>(std::move(elm_def));
   }
-  std::unique_ptr<ast::Expression> Variable::ASTgen()
+  std::unique_ptr<ast::Expression> Variable::ASTgen() const
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
     std::unique_ptr<ast::Variable_reference> var_ref { new ast::Variable_reference(var) };
     return static_unique_pointer_cast<ast::Expression>(std::move(var_ref));
   }
-  std::unique_ptr<ast::Expression> Array_element::ASTgen()
+  std::unique_ptr<ast::Expression> Array_element::ASTgen() const
   {
     std::shared_ptr<ast::Variable> var = get_or_create_var(this->name);
     std::vector<std::unique_ptr<ast::Expression>> indices;
@@ -70,7 +70,7 @@ namespace cst {
     auto elm_ref = std::make_unique<ast::Array_element_reference>(var, std::move(indices));
     return static_unique_pointer_cast<ast::Expression>(std::move(elm_ref));
   }
-  std::unique_ptr<ast::Expression> Constant::ASTgen()
+  std::unique_ptr<ast::Expression> Constant::ASTgen() const
   {
     if (this->type_kind == Type_kind::Intrinsic) {
       if (this->type_name == "integer") {
@@ -97,7 +97,7 @@ namespace cst {
     }
     return nullptr;
   }
-  std::unique_ptr<ast::Expression> Expression::ASTgen()
+  std::unique_ptr<ast::Expression> Expression::ASTgen() const
   {
     std::unique_ptr<ast::Expression> exp = nullptr;
     if (is_binary_operator(this->operators[0])) {
@@ -152,7 +152,7 @@ namespace cst {
     return std::move(exp);
   }
 
-  std::unique_ptr<ast::Statement> Do_with_do_variable::ASTgen()
+  std::unique_ptr<ast::Statement> Do_with_do_variable::ASTgen() const
   {
     auto initial_expr = std::make_unique<ast::Assignment_statement>(this->do_variable->ASTgen_definition(),
                                                                     this->start_expr->ASTgen());
@@ -181,7 +181,7 @@ namespace cst {
                                                 this->block->ASTgen());
   }
 
-  std::unique_ptr<ast::Block> Block::ASTgen()
+  std::unique_ptr<ast::Block> Block::ASTgen() const
   {
     auto ast_block = std::make_unique<ast::Block>();
     for (auto &construct : this->execution_part_constructs) {
@@ -190,13 +190,13 @@ namespace cst {
     return ast_block;
   }
   
-  std::unique_ptr<ast::Statement> Assignment_statement::ASTgen()
+  std::unique_ptr<ast::Statement> Assignment_statement::ASTgen() const
   {
     return std::make_unique<ast::Assignment_statement>(this->lhs->ASTgen_definition(),
                                                        this->rhs->ASTgen());
   }
   
-  std::shared_ptr<ast::Program_unit> Program::ASTgen()
+  std::shared_ptr<ast::Program_unit> Program::ASTgen() const
   {
     std::shared_ptr<ast::Program_unit> program_unit { new ast::Program_unit(this->name) };
     current_variable_table = std::make_unique<std::map<std::string, std::shared_ptr<ast::Variable>>>();
@@ -230,7 +230,7 @@ namespace cst {
     return result;
   }
 
-  std::unique_ptr<ast::Shape> Explicit_shape_spec::ASTgen()
+  std::unique_ptr<ast::Shape> Explicit_shape_spec::ASTgen() const
   {
     std::vector<std::unique_ptr<ast::Bound>> bounds;
     for (int i=0; i<this->lower_bounds.size(); i++) {
@@ -240,7 +240,7 @@ namespace cst {
     return std::make_unique<ast::Shape>(std::move(bounds));
   }
 
-  void Dimension_statement::ASTgen(std::shared_ptr<ast::Program_unit> program)
+  void Dimension_statement::ASTgen(std::shared_ptr<ast::Program_unit> program) const
   {
     for (auto& spec : this->specs) {
       std::shared_ptr<ast::Variable> var = get_or_create_var(spec->get_array_name());
@@ -248,7 +248,7 @@ namespace cst {
     }
   }
   
-  void Type_specification::ASTgen(std::shared_ptr<ast::Program_unit> program)
+  void Type_specification::ASTgen(std::shared_ptr<ast::Program_unit> program) const
   {
     std::shared_ptr<ast::Type> type = get_or_create_type(this->type_kind, this->type_name);
     for (std::string name : this->variables) {
@@ -257,7 +257,7 @@ namespace cst {
     }
   }
 
-  std::unique_ptr<ast::Statement> Print_statement::ASTgen()
+  std::unique_ptr<ast::Statement> Print_statement::ASTgen() const
   {
     std::unique_ptr<ast::Output_statement> ast_output_stmt { new ast::Output_statement() };
     for (auto &elm : this->elements) {
@@ -267,7 +267,7 @@ namespace cst {
   }
 
   // if文とif構文の違いはASTで吸収する
-  std::unique_ptr<ast::Statement> If_statement::ASTgen()
+  std::unique_ptr<ast::Statement> If_statement::ASTgen() const
   {
     std::unique_ptr<ast::If_construct> ast_if_construct {
       new ast::If_construct(this->logical_expr->ASTgen()) };

@@ -469,18 +469,16 @@ namespace parser{
   std::unique_ptr<Assignment_statement> parse_assignment_stmt()
   {
     save_ofs();
-    std::unique_ptr<Assignment_statement> assignment_stmt {new Assignment_statement()};
     // only variable is acceptable as a left side of assignment statement
     std::unique_ptr<Variable> var = parse_designator();
     if (!var || !read_token("=")) {
       restore_ofs();
       return nullptr;
     }
-    assignment_stmt->set_lhs(std::move(var));
-    assignment_stmt->set_rhs(parse_expression());
+    std::unique_ptr<Expression> rhs = parse_expression();
     discard_saved_ofs();
     assert_end_of_line();
-    return assignment_stmt;
+    return std::make_unique<Assignment_statement>(std::move(var), std::move(rhs));
   }
   std::unique_ptr<Print_statement> parse_print_stmt()
   {

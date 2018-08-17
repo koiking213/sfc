@@ -89,13 +89,8 @@ namespace ast {
 
   class Binary_op : public Expression {
   public:
-    Binary_op(binary_op_kind op, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs) : exp_operator(op) {
-      this->lhs = std::move(lhs);
-      this->rhs = std::move(rhs);
-    }
-    void set_operator(binary_op_kind op) {this->exp_operator = op;} // del
-    void set_lhs(std::unique_ptr<Expression> lhs) {this->lhs = std::move(lhs);} // del
-    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);} // del
+    Binary_op(binary_op_kind op, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs)
+      : exp_operator(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;
@@ -114,11 +109,8 @@ namespace ast {
 
   class Unary_op : public Expression {
   public:
-    Unary_op(unary_op_kind op, std::unique_ptr<Expression> elm) : exp_operator(op) {
-      this->operand = std::move(elm);
-    }
-    void set_operator(unary_op_kind op) {this->exp_operator = op;}
-    void set_operand(std::unique_ptr<Expression> elm) {this->operand = std::move(elm);}
+    Unary_op(unary_op_kind op, std::unique_ptr<Expression> elm)
+      : exp_operator(op), operand(std::move(elm)) {}
     void print() const;
     llvm::Value *codegen() const;
     enum Type_kind get_type() const;

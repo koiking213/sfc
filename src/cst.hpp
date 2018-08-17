@@ -10,11 +10,11 @@ namespace cst {
   // TODO: operatorとexpressionを分離
   class Expression {
   public:
-    virtual void print();
+    virtual void print() const;
     void add_operand(std::unique_ptr<Expression> operand) {operands.push_back(std::move(operand));}
     void add_operator(std::string str) {operators.push_back(str);}
     int get_operator_count() const {return operators.size();}
-    virtual std::unique_ptr<ast::Expression> ASTgen();
+    virtual std::unique_ptr<ast::Expression> ASTgen() const;
   private:
     std::vector<std::unique_ptr<Expression>> operands;
     std::vector<std::string> operators;
@@ -45,15 +45,15 @@ namespace cst {
 
   class Specification {
   public:
-    virtual void print(std::string indent) = 0;
-    virtual void ASTgen(std::shared_ptr<ast::Program_unit> program) = 0;
+    virtual void print(std::string indent) const = 0 ;
+    virtual void ASTgen(std::shared_ptr<ast::Program_unit> program) const = 0;
     virtual ~Specification() {};
   };
 
   class Array_spec {
   public:
-    virtual void print() = 0;
-    virtual std::unique_ptr<ast::Shape> ASTgen() = 0;
+    virtual void print() const = 0;
+    virtual std::unique_ptr<ast::Shape> ASTgen() const = 0;
     virtual ~Array_spec() {};
   };
 
@@ -63,8 +63,8 @@ namespace cst {
       this->lower_bounds.push_back(std::move(lower));
       this->upper_bounds.push_back(std::move(upper));
     }
-    std::unique_ptr<ast::Shape> ASTgen();
-    void print();
+    std::unique_ptr<ast::Shape> ASTgen() const;
+    void print() const;
   private:
     std::vector<std::unique_ptr<Expression>> lower_bounds;
     std::vector<std::unique_ptr<Expression>> upper_bounds;
@@ -75,9 +75,9 @@ namespace cst {
     Dimension_spec(std::string array_name, std::unique_ptr<Array_spec> array_spec) : array_name(array_name) {
       this->array_spec = std::move(array_spec);
     }
-    void print(std::string indent);
+    void print(std::string indent) const;
     std::string get_array_name() {return array_name;}
-    std::unique_ptr<ast::Shape> ASTgen() {return array_spec->ASTgen();};
+    std::unique_ptr<ast::Shape> ASTgen() const {return array_spec->ASTgen();};
   private:
     std::string array_name;
     std::unique_ptr<Array_spec> array_spec;
@@ -85,8 +85,8 @@ namespace cst {
 
   class Dimension_statement : public Specification {
   public:
-    void print(std::string indent);
-    void ASTgen(std::shared_ptr<ast::Program_unit> program);
+    void print(std::string indent) const;
+    void ASTgen(std::shared_ptr<ast::Program_unit> program) const;
     void add_spec(std::unique_ptr<Dimension_spec> spec) {this->specs.push_back(std::move(spec));}
   private:
     std::vector<std::unique_ptr<Dimension_spec>> specs;
@@ -94,8 +94,8 @@ namespace cst {
 
   class Type_specification : public Specification {
   public:
-    void print(std::string indent);
-    void ASTgen(std::shared_ptr<ast::Program_unit> program);
+    void print(std::string indent) const;
+    void ASTgen(std::shared_ptr<ast::Program_unit> program) const;
     Type_specification(enum Type_kind kind, std::string name) : type_kind(kind), type_name(name) {};
     void add_variable(std::string var) {variables.push_back(var);}
   private:
@@ -117,16 +117,16 @@ namespace cst {
 
   class Executable_construct {
   public:
-    virtual void print(std::string indent) = 0;
-    virtual std::unique_ptr<ast::Statement> ASTgen() = 0;
+    virtual void print(std::string indent) const = 0 ;
+    virtual std::unique_ptr<ast::Statement> ASTgen() const = 0;
     virtual ~Executable_construct() {};
   };
 
 
   class Print_statement : public Executable_construct {
   public:
-    void print(std::string indent);
-    std::unique_ptr<ast::Statement> ASTgen();
+    void print(std::string indent) const;
+    std::unique_ptr<ast::Statement> ASTgen() const;
     void add_element(std::unique_ptr<Expression> elm) {elements.push_back(std::move(elm));}
   private:
     std::vector<std::unique_ptr<Expression>> elements;
@@ -138,8 +138,8 @@ namespace cst {
       logical_expr = std::move(expr);
       action_stmt = std::move(stmt);
     }
-    void print(std::string indent);
-    std::unique_ptr<ast::Statement> ASTgen();
+    void print(std::string indent) const;
+    std::unique_ptr<ast::Statement> ASTgen() const;
   private:
     std::unique_ptr<Executable_construct> action_stmt;
     std::unique_ptr<Expression> logical_expr;
@@ -147,11 +147,11 @@ namespace cst {
 
   class Block {
   public:
-    void print(std::string indent);
+    void print(std::string indent) const;
     void add_construct(std::unique_ptr<Executable_construct> construct) {
       execution_part_constructs.push_back(std::move(construct));
     }
-    std::unique_ptr<ast::Block> ASTgen();
+    std::unique_ptr<ast::Block> ASTgen() const;
   private:
     std::vector<std::unique_ptr<Executable_construct>> execution_part_constructs;
   };
@@ -160,9 +160,9 @@ namespace cst {
   class Variable : public Expression {
   public:
     Variable(std::string name) : name(name) {};
-    virtual void print();
-    virtual std::unique_ptr<ast::Expression> ASTgen();
-    virtual std::unique_ptr<ast::Variable_definition> ASTgen_definition();
+    virtual void print() const;
+    virtual std::unique_ptr<ast::Expression> ASTgen() const;
+    virtual std::unique_ptr<ast::Variable_definition> ASTgen_definition() const;
   protected:
     std::string name;
   };
@@ -171,18 +171,18 @@ namespace cst {
   public:
     Array_element(std::string name, std::vector<std::unique_ptr<Expression>> subscripts)
       : Variable(name), subscripts(std::move(subscripts)) {}
-    void print();
-    std::unique_ptr<ast::Expression> ASTgen();
-    std::unique_ptr<ast::Variable_definition> ASTgen_definition();
+    void print() const;
+    std::unique_ptr<ast::Expression> ASTgen() const;
+    std::unique_ptr<ast::Variable_definition> ASTgen_definition() const;
   private:
     std::vector<std::unique_ptr<Expression>> subscripts;
   };
 
   class Constant : public Expression {
   public:
-    void print();
+    void print() const;
     Constant(enum Type_kind kind, std::string name, std::string value) : type_kind(kind), type_name(name), value(value) {};
-    std::unique_ptr<ast::Expression> ASTgen();
+    std::unique_ptr<ast::Expression> ASTgen() const;
   private:
     enum Type_kind type_kind;
     std::string type_name;
@@ -193,7 +193,7 @@ namespace cst {
   class Do_construct : public Executable_construct {
   public:
     Do_construct(std::string name) : construct_name(name) {}
-    virtual void print(std::string indent) = 0;
+    virtual void print(std::string indent) const = 0;
     void set_block(std::unique_ptr<Block> block) {this->block = std::move(block);}
     std::string get_construct_name() {return construct_name;}
   protected:
@@ -214,8 +214,8 @@ namespace cst {
       this->end_expr = std::move(end_expr);
       this->stride_expr = std::move(stride_expr);
     }
-    void print(std::string indent);
-    std::unique_ptr<ast::Statement> ASTgen();
+    void print(std::string indent) const;
+    std::unique_ptr<ast::Statement> ASTgen() const;
   private:
     std::unique_ptr<Variable> do_variable;
     std::unique_ptr<Expression> start_expr;
@@ -225,10 +225,11 @@ namespace cst {
 
   class Assignment_statement : public Executable_construct {
   public:
-    void set_lhs(std::unique_ptr<Variable> lhs) {this->lhs = std::move(lhs);}
-    void set_rhs(std::unique_ptr<Expression> rhs) {this->rhs = std::move(rhs);}
-    void print(std::string indent);
-    std::unique_ptr<ast::Statement> ASTgen();
+    Assignment_statement(std::unique_ptr<Variable> lhs,
+                         std::unique_ptr<Expression> rhs)
+      : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    void print(std::string indent) const;
+    std::unique_ptr<ast::Statement> ASTgen() const;
   private:
     std::unique_ptr<Variable> lhs;
     std::unique_ptr<Expression> rhs;
@@ -241,8 +242,8 @@ namespace cst {
   class Program {
   public:
     Program(std::string str) { name = str; };
-    void print();
-    std::shared_ptr<ast::Program_unit> ASTgen();
+    void print() const;
+    std::shared_ptr<ast::Program_unit> ASTgen() const;
     void add_specification(std::unique_ptr<Specification> spec) {specifications.push_back(std::move(spec));};
     void add_executable_construct(std::unique_ptr<Executable_construct> exec) {executable_constructs.push_back(std::move(exec));};
     std::string get_name() { return name; }
