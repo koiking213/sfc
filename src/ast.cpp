@@ -114,9 +114,9 @@ namespace ast {
     this->condition_expression->print();
     std::cout << std::endl;
     std::cout << indent + "  " << "statements in then block:" << std::endl;
-    this->then_block.print(indent + "  ");
+    this->then_block->print(indent + "  ");
     std::cout << indent + "  " << "statements in else block:" << std::endl;
-    this->else_block.print(indent + "  ");
+    this->else_block->print(indent + "  ");
   }
   void Do_construct::print(std::string indent) const
   {

@@ -97,7 +97,7 @@ namespace cst {
     }
     return nullptr;
   }
-  std::unique_ptr<ast::Expression> Expression::ASTgen() const
+  std::unique_ptr<ast::Expression> Operator::ASTgen() const
   {
     std::unique_ptr<ast::Expression> exp = nullptr;
     if (is_binary_operator(this->operators[0])) {
@@ -266,12 +266,14 @@ namespace cst {
     return static_unique_pointer_cast<ast::Statement>(std::move(ast_output_stmt));
   }
 
-  // if文とif構文の違いはASTで吸収する
+  // if文とif構文の違いはASTで吸収する予定
   std::unique_ptr<ast::Statement> If_statement::ASTgen() const
   {
-    std::unique_ptr<ast::If_construct> ast_if_construct {
-      new ast::If_construct(this->logical_expr->ASTgen()) };
-    ast_if_construct->add_then_stmt(this->action_stmt->ASTgen());
+    std::vector<std::unique_ptr<ast::Statement>> statements;
+    statements.push_back(this->action_stmt->ASTgen());
+    std::unique_ptr<ast::Block> block { new ast::Block(std::move(statements)) };
+    auto ast_if_construct = std::make_unique<ast::If_construct>(this->logical_expr->ASTgen(),
+                                                                std::move(block));
     return static_unique_pointer_cast<ast::Statement>(std::move(ast_if_construct));
   }
 }

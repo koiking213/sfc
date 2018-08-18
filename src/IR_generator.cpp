@@ -297,14 +297,14 @@ namespace ast {
     // then_BBをカレントブロックにする
     builder.SetInsertPoint(then_BB);
     // then_BBにthen_BBのIRを生成
-    this->then_block.codegen();
+    this->then_block->codegen();
     // then_BBからmerge_BBへのjumpを挿入
     builder.CreateBr(merge_BB);
 
     // else側
     func->getBasicBlockList().push_back(else_BB);
     builder.SetInsertPoint(else_BB);
-    this->else_block.codegen();
+    this->else_block->codegen();
     builder.CreateBr(merge_BB);
 
     // 合流後

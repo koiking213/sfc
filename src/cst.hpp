@@ -10,6 +10,12 @@ namespace cst {
   // TODO: operatorとexpressionを分離
   class Expression {
   public:
+    virtual void print() const = 0;
+    virtual std::unique_ptr<ast::Expression> ASTgen() const = 0;
+  };
+
+  class Operator : public Expression {
+  public:
     virtual void print() const;
     void add_operand(std::unique_ptr<Expression> operand) {operands.push_back(std::move(operand));}
     void add_operator(std::string str) {operators.push_back(str);}

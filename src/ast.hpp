@@ -164,7 +164,7 @@ namespace ast {
     float value;
   };
 
-  class Logical_constant : public Constant { // 別のclassにするよりtemplateを検討する
+  class Logical_constant : public Constant {
   public:
     Logical_constant(bool val) : value(val) {};
     void print() const;
@@ -261,13 +261,14 @@ namespace ast {
   };
 
   class Construct : public Statement {
-    // is there some feature all construct have?
   public:
     virtual void print(std::string indent) const = 0;
   };
 
   class Block {
   public:
+    Block() {};
+    Block(std::vector<std::unique_ptr<Statement>> statements) : statements(std::move(statements)) {};
     void add_statement(std::unique_ptr<Statement> stmt) {statements.push_back(std::move(stmt));}
     void print (std::string indent) const;
     void codegen() const;
@@ -280,7 +281,6 @@ namespace ast {
   public:
     void print(std::string indent) const;
     void codegen() const;
-    void add_statement(std::unique_ptr<Statement> stmt) {block->add_statement(std::move(stmt));}
     Do_construct(std::unique_ptr<Assignment_statement> initial_expr,
                  std::unique_ptr<Assignment_statement> increment_expr,
                  std::unique_ptr<Expression> condition_expr,
@@ -299,17 +299,18 @@ namespace ast {
 
   class If_construct : public Construct {
   public:
-    If_construct(std::unique_ptr<Expression> expr) {
-      condition_expression = std::move(expr);
-    }
+    If_construct(std::unique_ptr<Expression> expr, std::unique_ptr<Block> then_block)
+      : condition_expression(std::move(expr)), then_block(std::move(then_block)), else_block(std::make_unique<Block>()) {};
+    If_construct(std::unique_ptr<Expression> expr,
+                 std::unique_ptr<Block> then_block,
+                 std::unique_ptr<Block> else_block)
+      : condition_expression(std::move(expr)), then_block(std::move(then_block)), else_block(std::move(else_block)) {};
     void print(std::string indent) const;
     void codegen() const;
-    void add_then_stmt(std::unique_ptr<Statement> stmt) {then_block.add_statement(std::move(stmt));};
-    void add_else_stmt(std::unique_ptr<Statement> stmt) {else_block.add_statement(std::move(stmt));};
   private:
     std::unique_ptr<Expression> condition_expression;
-    Block then_block; // TODO: std::unique_ptrにする
-    Block else_block; // TODO: std::unique_ptrにする
+    std::unique_ptr<Block> then_block;
+    std::unique_ptr<Block> else_block;
   };
 
   class Program_unit {

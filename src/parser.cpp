@@ -379,7 +379,7 @@ namespace parser{
   // add-operand is [ add-operand mult-op ] mult-operand
   std::unique_ptr<Expression> parse_add_operand()
   {
-    std::unique_ptr<Expression> exp { new Expression() };
+    std::unique_ptr<Operator> exp { new Operator() };
     std::unique_ptr<Expression> operand = parse_mult_operand();
     while (true) {
       if (read_operator("*")) {
@@ -396,13 +396,13 @@ namespace parser{
       return std::move(operand);
     }
     exp->add_operand(std::move(operand));
-    return std::move(exp);
+    return static_cast<std::unique_ptr<Expression>>(std::move(exp));
   }
 
   // level-2-expr is [ [ level-2-expr ] add-op ] add-operand
   std::unique_ptr<Expression> parse_level2_expr()
   {
-    std::unique_ptr<Expression> exp { new Expression() };
+    std::unique_ptr<Operator> exp { new Operator() };
     std::unique_ptr<Expression> operand = parse_add_operand();
     while (true) {
       if (read_operator("+")) {
@@ -419,14 +419,14 @@ namespace parser{
       return std::move(operand);
     }
     exp->add_operand(std::move(operand));
-    return std::move(exp);
+    return static_cast<std::unique_ptr<Expression>>(std::move(exp));
   }
 
   // level-4-expr is [ level-3-expr rel-op ] level-3-expr
   std::unique_ptr<Expression> parse_expression()
   {
     // level-4-expr
-    std::unique_ptr<Expression> exp { new Expression() };
+    std::unique_ptr<Operator> exp { new Operator() };
     std::unique_ptr<Expression> operand = parse_level2_expr();
     while (true) {
       if (read_operator(".eq.")) {
@@ -463,7 +463,7 @@ namespace parser{
       return std::move(operand);
     }
     exp->add_operand(std::move(operand));
-    return std::move(exp);
+    return static_cast<std::unique_ptr<Expression>>(std::move(exp));
   }
 
   std::unique_ptr<Assignment_statement> parse_assignment_stmt()

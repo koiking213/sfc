@@ -84,7 +84,7 @@ namespace cst {
   {
     std::cout << this->value;
   }
-  void Expression::print() const
+  void Operator::print() const
   {
     std::cout << "(";
     for (int i=0; i<this->operators.size(); i++) {
