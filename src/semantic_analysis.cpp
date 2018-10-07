@@ -225,6 +225,8 @@ namespace cst {
       result = std::make_shared<ast::Type>(ast::Type_kind::i32);
     } else if (type_name == "real") {
       result = std::make_shared<ast::Type>(ast::Type_kind::fp32);
+    } else if (type_name == "logical") {
+      result = std::make_shared<ast::Type>(ast::Type_kind::logical);
     }
     (*current_type_table)[type_name] = result;
     return result;

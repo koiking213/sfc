@@ -373,6 +373,8 @@ namespace ast {
       value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), size, this->name);
     } else if (this->get_type_kind() == Type_kind::fp32) {
       value = builder.CreateAlloca(llvm::Type::getFloatTy(context), size, this->name);
+    } else if (this->get_type_kind() == Type_kind::logical) {
+      value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), size, this->name);
     }
     variable_table[this->name] = value;
   }
