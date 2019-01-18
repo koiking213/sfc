@@ -95,6 +95,19 @@ std::string Line::read_logical_constant()
   }
   return "";
 }
+std::string Line::read_character_constant()
+{
+  int save_ofs = column;
+  if (this->read_token("\"")) {
+    int pos = content.find("\"", column+1);
+    if (pos != std::string::npos) {
+      column = pos+1;
+      return content.substr(save_ofs+1, pos-save_ofs-1);
+    }
+  }
+  column = save_ofs;
+  return "";
+}
 bool Line::read_operator(const std::string op)
 {
   int save_ofs = column;

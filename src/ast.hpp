@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include <set>
 #include "llvm/IR/IRBuilder.h"
 
 namespace ast {
@@ -22,16 +23,20 @@ namespace ast {
     i64,
     fp32,
     fp64,
-    pointer
+    pointer,
+    character
   };
   
   class Type {
   public:
     Type(Type_kind type_kind) : type_kind(type_kind) {}
+    Type(Type_kind type_kind, int length) : type_kind(type_kind), length(length) {}
     void print() const;
     Type_kind get_type_kind() const {return type_kind;} ;
+    int get_length() const {return length;};
   private:
     enum Type_kind type_kind;
+    int length;
   };
 
   class Bound {
@@ -64,12 +69,13 @@ namespace ast {
   public:
     Variable(std::string name) : name(name) {}
     void print(std::string indent) const;
-    void codegen() const;
+    virtual void codegen() const;
     std::string get_name() const {return name;}
     Type_kind get_type_kind() const {return type->get_type_kind();}
     void set_type(std::shared_ptr<Type> type){this->type = type;}
     void set_shape(std::unique_ptr<Shape> shape) {this->shape = std::move(shape);}
     const Shape& get_shape() const {return *shape;}
+    std::shared_ptr<Type> get_type() const {return type;}
   private:
     std::string name;
     std::shared_ptr<Type> type;
@@ -81,7 +87,7 @@ namespace ast {
     virtual int eval_constant_value() const = 0;
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
-    virtual enum Type_kind get_type() const = 0;
+    virtual enum Type_kind get_type_kind() const = 0;
     virtual bool is_constant_int() const = 0;
     virtual std::unique_ptr<Expression> get_copy() const = 0;
     virtual ~Expression() {};
@@ -93,7 +99,7 @@ namespace ast {
       : exp_operator(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const;
     llvm::Value *codegen() const;
-    enum Type_kind get_type() const;
+    enum Type_kind get_type_kind() const;
     int eval_constant_value() const;
     bool is_constant_int() const;
     std::unique_ptr<Expression> get_copy() const {
@@ -113,7 +119,7 @@ namespace ast {
       : exp_operator(op), operand(std::move(elm)) {}
     void print() const;
     llvm::Value *codegen() const;
-    enum Type_kind get_type() const;
+    enum Type_kind get_type_kind() const;
     int eval_constant_value() const {assert(0);};
     bool is_constant_int() const {return operand->is_constant_int();};
     std::unique_ptr<Expression> get_copy() const {
@@ -128,7 +134,7 @@ namespace ast {
   public:
     virtual void print() const = 0;
     virtual llvm::Value *codegen() const = 0;
-    virtual Type_kind get_type() const = 0;
+    virtual Type_kind get_type_kind() const = 0;
     virtual int eval_constant_value() const = 0;
     virtual std::unique_ptr<Expression> get_copy() const = 0;
     virtual ~Constant() {};
@@ -142,7 +148,7 @@ namespace ast {
     void print() const;
     llvm::Value *codegen() const;
     int32_t get_value() const {return value;}
-    Type_kind get_type() const {return Type_kind::i32;};
+    Type_kind get_type_kind() const {return Type_kind::i32;};
     int eval_constant_value() const {return value;};
     bool is_constant_int() const {return true;};
     std::unique_ptr<Expression> get_copy() const {return std::make_unique<Int32_constant>(value);}
@@ -156,7 +162,7 @@ namespace ast {
     void print() const;
     llvm::Value *codegen() const;
     float get_value() const {return value;}
-    Type_kind get_type() const {return Type_kind::fp32;};
+    Type_kind get_type_kind() const {return Type_kind::fp32;};
     int eval_constant_value() const {return (int)value;};
     bool is_constant_int() const {return false;};
     std::unique_ptr<Expression> get_copy() const {return std::make_unique<FP32_constant>(value);}
@@ -170,7 +176,7 @@ namespace ast {
     void print() const;
     llvm::Value *codegen() const;
     bool get_value() const {return value;}
-    Type_kind get_type() const {return Type_kind::logical;}
+    Type_kind get_type_kind() const {return Type_kind::logical;}
     int get_int_value() const {return 1 ? value : 0;}
     int eval_constant_value() const {return (int)value;};
     bool is_constant_int() const {return false;};
@@ -179,12 +185,27 @@ namespace ast {
     bool value;
   };
 
+  class Character_constant : public Constant {
+  public:
+    Character_constant(std::string val) : value(val) {};
+    void print() const;
+    llvm::Value *codegen() const;
+    llvm::Value *codegen_definition() const;
+    std::string get_value() const {return value;}
+    Type_kind get_type_kind() const {return Type_kind::character;}
+    int eval_constant_value() const {assert(0);};
+    bool is_constant_int() const {return false;};
+    std::unique_ptr<Expression> get_copy() const {return std::make_unique<Character_constant>(value);}
+  private:
+    std::string value;
+  };
+
   class Variable_reference : public Expression {
   public:
     virtual void print() const;
     virtual llvm::Value *codegen() const;
     Variable_reference(std::shared_ptr<Variable> var) : var(var) {};
-    Type_kind get_type() const {return var->get_type_kind();}
+    Type_kind get_type_kind() const {return var->get_type_kind();}
     int eval_constant_value() const {assert(0);};
     bool is_constant_int() const {return false;};
     std::string get_var_name() const {return var->get_name();}
@@ -221,6 +242,7 @@ namespace ast {
   public:
     virtual llvm::Value *codegen() const;
     Variable_definition(std::shared_ptr<Variable> var) : Variable_reference(var) {}
+    int get_length() { return 1;}; // TODO: Array_definitionを新たに用意してそっちでやるべき?
   };
 
   class Array_element_definition : public Variable_definition,
@@ -322,11 +344,13 @@ namespace ast {
     void add_internal_program(std::unique_ptr<Program_unit>);
     void set_variables(std::unique_ptr<std::map<std::string, std::shared_ptr<Variable>>> table) {this->variables = std::move(table);}
     void set_types(std::unique_ptr<std::map<std::string, std::shared_ptr<Type>>> table) {this->types = std::move(table);}
+    void add_global_string(std::string str) {global_strings.insert(str);};
   private:
     std::string name;
     std::vector<std::unique_ptr<Statement>> statements;
     std::vector<std::shared_ptr<Program_unit>> internal_programs;
     std::unique_ptr<std::map<std::string, std::shared_ptr<Variable>>> variables;
     std::unique_ptr<std::map<std::string, std::shared_ptr<Type>>> types;
+    std::set<std::string> global_strings;
   };
 }

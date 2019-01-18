@@ -16,3 +16,7 @@ void _write_logical(int value)
     puts("F");
   }
 }
+void _write_string(char *value)
+{
+  printf("%s\n", value);
+}

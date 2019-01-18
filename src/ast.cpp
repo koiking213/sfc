@@ -45,6 +45,8 @@ namespace ast {
       return "fp32";
     case Type_kind::fp64:
       return "fp64";
+    case Type_kind::character:
+      return "character";
     case Type_kind::pointer:
       return "pointer";
     }
@@ -69,6 +71,10 @@ namespace ast {
     std::cout << this->value;
   }
   void Logical_constant::print() const
+  {
+    std::cout << this->value;
+  }
+  void Character_constant::print() const
   {
     std::cout << this->value;
   }
@@ -192,15 +198,15 @@ namespace ast {
     }
   }
 
-  enum Type_kind Unary_op::get_type() const
+  enum Type_kind Unary_op::get_type_kind() const
   {
     if (this->exp_operator == unary_op_kind::i32tofp32) {
-      assert(this->operand->get_type() == Type_kind::i32);
+      assert(this->operand->get_type_kind() == Type_kind::i32);
       return Type_kind::fp32;
     }
-    return operand->get_type();
+    return operand->get_type_kind();
   }
-  enum Type_kind Binary_op::get_type() const
+  enum Type_kind Binary_op::get_type_kind() const
   {
     if (this->exp_operator == binary_op_kind::eq ||
         this->exp_operator == binary_op_kind::ne ||
@@ -211,14 +217,14 @@ namespace ast {
       {
         return Type_kind::logical;
       }
-    enum Type_kind l = lhs->get_type();
-    enum Type_kind r = rhs->get_type();
+    enum Type_kind l = lhs->get_type_kind();
+    enum Type_kind r = rhs->get_type_kind();
     if (l==r) return l;
     assert(0);
   }
   bool Binary_op::is_constant_int() const
   {
-    if (this->get_type() != Type_kind::i32) return false;
+    if (this->get_type_kind() != Type_kind::i32) return false;
     return lhs->is_constant_int() && rhs->is_constant_int();
   }
   int Binary_op::eval_constant_value() const

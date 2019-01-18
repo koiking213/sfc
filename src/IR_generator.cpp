@@ -32,6 +32,7 @@ static LLVMContext context;
 static IRBuilder<> builder(context);
 static std::map<std::string, llvm::Value *> variable_table;
 static std::map<std::string, llvm::Value *> procedure_table;
+static std::map<std::string, llvm::Value *> global_string_table;
 
 namespace IR_generator {
   void add_library_prototype_to_module() {
@@ -56,6 +57,13 @@ namespace IR_generator {
     func =
       llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_logical", module);
     procedure_table["_write_logical"] = func;
+    for (auto &arg : func->args()) {
+      arg.setName("value");
+    }
+
+    func =
+      llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, "_write_string", module);
+    procedure_table["_write_string"] = func;
     for (auto &arg : func->args()) {
       arg.setName("value");
     }
@@ -132,8 +140,20 @@ namespace ast {
   llvm::Value *Logical_constant::codegen() const {
     return llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), this->get_int_value());
   }
+  llvm::Value *Character_constant::codegen() const {
+    return global_string_table[this->value];
+  }
   llvm::Value *Variable_reference::codegen() const {
-    return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
+    if (this->get_type_kind() == Type_kind::character) {
+      llvm::Value* zero = builder.getInt32(0);
+      llvm::Value* args[] = {zero, zero};
+      return  builder.CreateInBoundsGEP(builder.getInt8Ty(),
+                                        variable_table[this->get_var_name()],
+                                        zero,
+                                        "character_ref");
+    } else {
+      return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
+    }
   }
   llvm::Value *Array_element_reference::codegen() const {
     llvm::Value *val = builder.CreateGEP(variable_table[this->get_var_name()],
@@ -156,81 +176,81 @@ namespace ast {
     llvm::Value *rhs = this->rhs->codegen();
     switch (this->exp_operator) {
     case binary_op_kind::add:
-      if (this->get_type() == Type_kind::i32) {
+      if (this->get_type_kind() == Type_kind::i32) {
         return builder.CreateAdd(lhs, rhs, "add_tmp");
-      } else if (this->get_type() == Type_kind::fp32) {
+      } else if (this->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFAdd(lhs, rhs, "fadd_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::sub:
-      if (this->get_type() == Type_kind::i32) {
+      if (this->get_type_kind() == Type_kind::i32) {
         return builder.CreateSub(lhs, rhs, "sub_tmp");
-      } else if (this->get_type() == Type_kind::fp32) {
+      } else if (this->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFSub(lhs, rhs, "fsub_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::mul:
-      if (this->get_type() == Type_kind::i32) {
+      if (this->get_type_kind() == Type_kind::i32) {
         return builder.CreateMul(lhs, rhs, "mul_tmp");
-      } else if (this->get_type() == Type_kind::fp32) {
+      } else if (this->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFMul(lhs, rhs, "fmul_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::div:
-      if (this->get_type() == Type_kind::i32) {
+      if (this->get_type_kind() == Type_kind::i32) {
         return builder.CreateSDiv(lhs, rhs, "div_tmp");
-      } else if (this->get_type() == Type_kind::fp32) {
+      } else if (this->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFDiv(lhs, rhs, "fdiv_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::eq:
-      if (this->lhs->get_type() == Type_kind::i32) {
+      if (this->lhs->get_type_kind() == Type_kind::i32) {
         return builder.CreateICmpEQ(lhs, rhs, "ieq_tmp");
-      } else if (this->lhs->get_type() == Type_kind::fp32) {
+      } else if (this->lhs->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFCmpUEQ(lhs, rhs, "feq_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::ne:
-      if (this->lhs->get_type() == Type_kind::i32) {
+      if (this->lhs->get_type_kind() == Type_kind::i32) {
         return builder.CreateICmpNE(lhs, rhs, "ine_tmp");
-      } else if (this->lhs->get_type() == Type_kind::fp32) {
+      } else if (this->lhs->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFCmpUNE(lhs, rhs, "fne_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::lt:
-      if (this->lhs->get_type() == Type_kind::i32) {
+      if (this->lhs->get_type_kind() == Type_kind::i32) {
         return builder.CreateICmpSLT(lhs, rhs, "ilt_tmp");
-      } else if (this->lhs->get_type() == Type_kind::fp32) {
+      } else if (this->lhs->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFCmpULT(lhs, rhs, "flt_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::le:
-      if (this->lhs->get_type() == Type_kind::i32) {
+      if (this->lhs->get_type_kind() == Type_kind::i32) {
         return builder.CreateICmpSLE(lhs, rhs, "ile_tmp");
-      } else if (this->lhs->get_type() == Type_kind::fp32) {
+      } else if (this->lhs->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFCmpULE(lhs, rhs, "fle_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::gt:
-      if (this->lhs->get_type() == Type_kind::i32) {
+      if (this->lhs->get_type_kind() == Type_kind::i32) {
         return builder.CreateICmpSGT(lhs, rhs, "igt_tmp");
-      } else if (this->lhs->get_type() == Type_kind::fp32) {
+      } else if (this->lhs->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFCmpUGT(lhs, rhs, "fgt_tmp");
       } else {
         assert(0);
       }
     case binary_op_kind::ge:
-      if (this->lhs->get_type() == Type_kind::i32) {
+      if (this->lhs->get_type_kind() == Type_kind::i32) {
         return builder.CreateICmpSGE(lhs, rhs, "ige_tmp");
-      } else if (this->lhs->get_type() == Type_kind::fp32) {
+      } else if (this->lhs->get_type_kind() == Type_kind::fp32) {
         return builder.CreateFCmpUGE(lhs, rhs, "fge_tmp");
       } else {
         assert(0);
@@ -252,7 +272,16 @@ namespace ast {
   {
     llvm::Value *lhs = this->lhs->codegen();
     llvm::Value *rhs = this->rhs->codegen();
-    builder.CreateStore(rhs, lhs);
+
+    if (this->lhs->get_type_kind() == Type_kind::character) {
+      /* TODO: characterだけでなく配列への代入をこのルートへ通す */
+
+      std::vector<llvm::Value*> args;
+      llvm::Value *size = builder.getInt32(this->lhs->get_length()+1);
+      builder.CreateMemCpy(lhs, rhs, size, /* alignment= */ 1);
+    } else {
+      builder.CreateStore(rhs, lhs);
+    }
   }
 
   void Output_statement::codegen() const
@@ -261,12 +290,14 @@ namespace ast {
       std::vector<llvm::Value*> args;
       args.push_back(elm->codegen());
       llvm::Function *callee;
-      if (elm->get_type() == Type_kind::i32) {
+      if (elm->get_type_kind() == Type_kind::i32) {
         callee = module->getFunction("_write_int");
-      } else if (elm->get_type() == Type_kind::fp32) {
+      } else if (elm->get_type_kind() == Type_kind::fp32) {
         callee = module->getFunction("_write_float");
-      } else if (elm->get_type() == Type_kind::logical) {
+      } else if (elm->get_type_kind() == Type_kind::logical) {
         callee = module->getFunction("_write_logical");
+      } else if (elm->get_type_kind() == Type_kind::character) {
+        callee = module->getFunction("_write_string");
       } else {
         assert(0);
       }
@@ -347,6 +378,10 @@ namespace ast {
     llvm::BasicBlock *entry = llvm::BasicBlock::Create(context, "entrypoint", main_func);
     builder.SetInsertPoint(entry);
 
+    for (std::string str : this->global_strings) {
+      global_string_table[str] = builder.CreateGlobalStringPtr(str);
+    }
+
     // variable declarations
     for (auto var_decl : *this->variables) {
       var_decl.second->codegen();
@@ -375,8 +410,9 @@ namespace ast {
       value = builder.CreateAlloca(llvm::Type::getFloatTy(context), size, this->name);
     } else if (this->get_type_kind() == Type_kind::logical) {
       value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), size, this->name);
+    } else if (this->get_type_kind() == Type_kind::character) {
+      value = builder.CreateAlloca(llvm::Type::getInt8Ty(context), builder.getInt32(this->type->get_length()+1), this->name);
     }
     variable_table[this->name] = value;
   }
-
 }
