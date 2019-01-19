@@ -227,7 +227,12 @@ namespace parser{
     } else if (read_token("logical")) {
       spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "logical");
     } else if (read_token("character")) {
-      spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "character");
+      std::unique_ptr<Expression> exp = nullptr;
+      if (read_token("(")) {
+        exp = parse_expression();
+        read_token(")");
+      }
+      spec = std::make_unique<Type_specification>(Type_kind::Intrinsic, "character", std::move(exp));
     } else {
       return nullptr;
     }
@@ -318,7 +323,7 @@ namespace parser{
   std::unique_ptr<Expression> parse_section_subscript()
   {
     // only subscript for now
-    return parse_expression(); // std:moveが必要？
+    return parse_expression();
   }
 
   std::unique_ptr<Array_element> parse_data_ref()

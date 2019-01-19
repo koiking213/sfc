@@ -102,9 +102,10 @@ namespace cst {
   public:
     void print(std::string indent) const;
     void ASTgen(std::shared_ptr<ast::Program_unit> program) const;
-    Type_specification(enum Type_kind kind, std::string name) : type_kind(kind), type_name(name) {};
+    Type_specification(enum Type_kind kind, std::string name, std::unique_ptr<Expression> len=nullptr) : type_kind(kind), type_name(name), len(std::move(len)) {};
     void add_variable(std::string var) {variables.push_back(var);}
   private:
+    std::unique_ptr<Expression> len;
     enum Type_kind type_kind;
     std::string type_name;
     std::vector<std::string> variables;

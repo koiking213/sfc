@@ -222,7 +222,7 @@ namespace cst {
     return current_program_unit;
   }
 
-  std::shared_ptr<ast::Type> get_or_create_type(cst::Type_kind type_kind, std::string type_name, int length=1)
+  std::shared_ptr<ast::Type> get_or_create_type(cst::Type_kind type_kind, std::string type_name)
   {
     if ((*current_type_table)[type_name]) {
       return (*current_type_table)[type_name];
@@ -237,7 +237,7 @@ namespace cst {
     } else if (type_name == "logical") {
       result = std::make_shared<ast::Type>(ast::Type_kind::logical);
     } else if (type_name == "character") {
-      result = std::make_shared<ast::Type>(ast::Type_kind::character, length);
+      result = std::make_shared<ast::Type>(ast::Type_kind::character);
     }
     (*current_type_table)[type_name] = result;
     return result;
@@ -263,11 +263,17 @@ namespace cst {
   
   void Type_specification::ASTgen(std::shared_ptr<ast::Program_unit> program) const
   {
-    // TODO: character型ならget_or_create_typeにlengthを渡す
     std::shared_ptr<ast::Type> type = get_or_create_type(this->type_kind, this->type_name);
     for (std::string name : this->variables) {
       std::shared_ptr<ast::Variable> var = get_or_create_var(name);
       var->set_type(type);
+      if (this->type_kind == Type_kind::Intrinsic && this->type_name == "character") {
+        if (this->len) {
+          var->set_len(this->len->ASTgen());
+        } else {
+          var->set_len(std::make_unique<ast::Int32_constant>(1));
+        }
+      }
     }
   }
 

@@ -30,13 +30,10 @@ namespace ast {
   class Type {
   public:
     Type(Type_kind type_kind) : type_kind(type_kind) {}
-    Type(Type_kind type_kind, int length) : type_kind(type_kind), length(length) {}
     void print() const;
     Type_kind get_type_kind() const {return type_kind;} ;
-    int get_length() const {return length;};
   private:
     enum Type_kind type_kind;
-    int length;
   };
 
   class Bound {
@@ -74,12 +71,15 @@ namespace ast {
     Type_kind get_type_kind() const {return type->get_type_kind();}
     void set_type(std::shared_ptr<Type> type){this->type = type;}
     void set_shape(std::unique_ptr<Shape> shape) {this->shape = std::move(shape);}
+    void set_len(std::unique_ptr<Expression> len) {this->len = std::move(len);}
+    const Expression& get_len() const {return *len;}
     const Shape& get_shape() const {return *shape;}
     std::shared_ptr<Type> get_type() const {return type;}
   private:
     std::string name;
     std::shared_ptr<Type> type;
     std::unique_ptr<Shape> shape;
+    std::unique_ptr<Expression> len;
   };
 
   class Expression {
@@ -242,7 +242,7 @@ namespace ast {
   public:
     virtual llvm::Value *codegen() const;
     Variable_definition(std::shared_ptr<Variable> var) : Variable_reference(var) {}
-    int get_length() { return 1;}; // TODO: Array_definitionを新たに用意してそっちでやるべき?
+    const Expression &get_len() const { return this->var->get_len();};
   };
 
   class Array_element_definition : public Variable_definition,

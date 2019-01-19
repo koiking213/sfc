@@ -277,7 +277,7 @@ namespace ast {
       /* TODO: characterだけでなく配列への代入をこのルートへ通す */
 
       std::vector<llvm::Value*> args;
-      llvm::Value *size = builder.getInt32(this->lhs->get_length()+1);
+      llvm::Value *size = builder.getInt32(this->lhs->get_len().eval_constant_value()+1);
       builder.CreateMemCpy(lhs, rhs, size, /* alignment= */ 1);
     } else {
       builder.CreateStore(rhs, lhs);
@@ -411,7 +411,7 @@ namespace ast {
     } else if (this->get_type_kind() == Type_kind::logical) {
       value = builder.CreateAlloca(llvm::Type::getInt32Ty(context), size, this->name);
     } else if (this->get_type_kind() == Type_kind::character) {
-      value = builder.CreateAlloca(llvm::Type::getInt8Ty(context), builder.getInt32(this->type->get_length()+1), this->name);
+      value = builder.CreateAlloca(llvm::Type::getInt8Ty(context), builder.getInt32(this->get_len().eval_constant_value()+1), this->name);
     }
     variable_table[this->name] = value;
   }
