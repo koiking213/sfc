@@ -258,6 +258,7 @@ namespace cst {
     for (auto& spec : this->specs) {
       std::shared_ptr<ast::Variable> var = get_or_create_var(spec->get_array_name());
       var->set_shape(std::move(spec->ASTgen()));
+      var->set_array_attr();
     }
   }
   

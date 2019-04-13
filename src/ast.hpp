@@ -31,7 +31,8 @@ namespace ast {
   public:
     Type(Type_kind type_kind) : type_kind(type_kind) {}
     void print() const;
-    Type_kind get_type_kind() const {return type_kind;} ;
+    Type_kind get_type_kind() const {return type_kind;}
+    llvm::Type* get_llvm_type(llvm::IRBuilder<> &builder) const;
   private:
     enum Type_kind type_kind;
   };
@@ -75,7 +76,10 @@ namespace ast {
     const Expression& get_len() const {return *len;}
     const Shape& get_shape() const {return *shape;}
     std::shared_ptr<Type> get_type() const {return type;}
+    bool is_array() const {return array_attr;}
+    bool set_array_attr() {array_attr = true;}
   private:
+    bool array_attr = false;
     std::string name;
     std::shared_ptr<Type> type;
     std::unique_ptr<Shape> shape;
@@ -91,6 +95,8 @@ namespace ast {
     virtual bool is_constant_int() const = 0;
     virtual std::unique_ptr<Expression> get_copy() const = 0;
     virtual ~Expression() {};
+    virtual const Shape& get_shape() const = 0;
+    virtual bool is_array() const = 0;
   };
 
   class Binary_op : public Expression {
@@ -107,6 +113,8 @@ namespace ast {
                                          lhs->get_copy(),
                                          rhs->get_copy());
     };
+    const Shape& get_shape() const;
+    bool is_array() const {return lhs->is_array() || rhs->is_array();}
   private:
     binary_op_kind exp_operator;
     std::unique_ptr<Expression> lhs;
@@ -125,11 +133,13 @@ namespace ast {
     std::unique_ptr<Expression> get_copy() const {
       return std::make_unique<Unary_op>(exp_operator, operand->get_copy());
     }
+    const Shape& get_shape() const {return operand->get_shape();}
+    bool is_array() const {return operand->is_array();}
   private:
     unary_op_kind exp_operator;
     std::unique_ptr<Expression> operand;
   };
-  
+
   class Constant : public Expression {
   public:
     virtual void print() const = 0;
@@ -138,7 +148,11 @@ namespace ast {
     virtual int eval_constant_value() const = 0;
     virtual std::unique_ptr<Expression> get_copy() const = 0;
     virtual ~Constant() {};
+    const Shape& get_shape() const {return *shape;}
+    bool is_array() const {return array_attr;}
   private:
+    bool array_attr = false;
+    std::unique_ptr<Shape> shape;
     enum Type_kind type_kind;
   };
 
@@ -210,6 +224,9 @@ namespace ast {
     bool is_constant_int() const {return false;};
     std::string get_var_name() const {return var->get_name();}
     virtual std::unique_ptr<Expression> get_copy() const {return std::make_unique<Variable_reference>(var);}
+    const Shape& get_shape() const {return var->get_shape();}
+    virtual bool is_array() const {return var->is_array();}
+    std::shared_ptr<Type> get_type() const {return var->get_type();}
   protected:
     std::shared_ptr<Variable> var;
     Variable_reference() {};
@@ -243,6 +260,7 @@ namespace ast {
     virtual llvm::Value *codegen() const;
     Variable_definition(std::shared_ptr<Variable> var) : Variable_reference(var) {}
     const Expression &get_len() const { return this->var->get_len();};
+    virtual bool is_array() const {return var->is_array();}
   };
 
   class Array_element_definition : public Variable_definition,
@@ -252,6 +270,7 @@ namespace ast {
     Array_element_definition(std::shared_ptr<Variable> var,
                              std::vector<std::unique_ptr<Expression>> indices)
       : Variable_reference(var), Variable_definition(var), Array_element_reference(var, std::move(indices)) {}
+    bool is_array() const {return false;}
   };
   
   class Statement {

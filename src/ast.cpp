@@ -257,6 +257,17 @@ namespace ast {
     return sum;
   }
 
+  const Shape& Binary_op::get_shape() const
+  {
+    if (this->lhs->is_array()) {
+      return this->lhs->get_shape();
+    } else if (this->rhs->is_array()) {
+      return this->rhs->get_shape();
+    } else {
+      assert("shape should only be asked for array");
+    }
+  }
+
   void Array_element_reference::calc_offset_expr()
   {
     assert(!this->offset_expr);
@@ -273,5 +284,25 @@ namespace ast {
       expr = std::make_unique<Binary_op>(binary_op_kind::add, std::move(expr), std::move(subscript));
     }
     this->offset_expr = std::move(expr);
+  }
+
+  llvm::Type* Type::get_llvm_type(llvm::IRBuilder<> &builder) const
+  {
+    switch (this->type_kind) {
+    case Type_kind::logical:
+      return builder.getInt1Ty();
+    case Type_kind::i32:
+      return builder.getInt32Ty();
+    case Type_kind::i64:
+      return builder.getInt64Ty();
+    case Type_kind::fp32:
+      return builder.getFloatTy();
+    case Type_kind::fp64:
+      return builder.getDoubleTy();
+    case Type_kind::pointer:
+      assert(false);
+    case Type_kind::character:
+      return builder.getInt8Ty();
+    }
   }
 }

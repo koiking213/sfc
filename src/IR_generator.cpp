@@ -146,11 +146,16 @@ namespace ast {
   llvm::Value *Variable_reference::codegen() const {
     if (this->get_type_kind() == Type_kind::character) {
       llvm::Value* zero = builder.getInt32(0);
-      llvm::Value* args[] = {zero, zero};
       return  builder.CreateInBoundsGEP(builder.getInt8Ty(),
                                         variable_table[this->get_var_name()],
                                         zero,
                                         "character_ref");
+    } else if (this->is_array()) {
+      llvm::Value* zero = builder.getInt32(0);
+      return  builder.CreateInBoundsGEP(this->get_type()->get_llvm_type(builder),
+                                        variable_table[this->get_var_name()],
+                                        zero,
+                                        "array_ref");
     } else {
       return builder.CreateLoad(variable_table[this->var->get_name()], "var_tmp");
     }
@@ -273,12 +278,16 @@ namespace ast {
     llvm::Value *lhs = this->lhs->codegen();
     llvm::Value *rhs = this->rhs->codegen();
 
+    // TODO: array of character case
     if (this->lhs->get_type_kind() == Type_kind::character) {
-      /* TODO: characterだけでなく配列への代入をこのルートへ通す */
-
-      std::vector<llvm::Value*> args;
       llvm::Value *size = builder.getInt32(this->lhs->get_len().eval_constant_value()+1);
       builder.CreateMemCpy(lhs, rhs, size, /* alignment= */ 1);
+    } else if (this->lhs->is_array() && this->rhs->is_array()) {
+      llvm::Value *size = builder.getInt32(this->lhs->get_shape().get_size()*4);
+      builder.CreateMemCpy(lhs, rhs, size, /* alignment= */ 4);
+    } else if (this->lhs->is_array() && !this->rhs->is_array()) {
+      /* TODO: create loop that copies rhs scalar for each element in lhs */
+      assert(false);
     } else {
       builder.CreateStore(rhs, lhs);
     }
